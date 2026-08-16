@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bootstour Cala Figuera – Navigationshilfe</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  :root{
+    --paper:#F2EDE3;
+    --paper-2:#E7DFD0;
+    --ink:#141B22;
+    --ink-2:#4A5866;
+    --line:#C9BEA9;
+    --signal:#C2461E;
+    --go:#1E6B4F;
+    --sea:#1B4A6B;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-size:16px;line-height:1.45;overscroll-behavior:none}
+  .mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+
+  header{padding:14px 16px 10px;border-bottom:2px solid var(--ink)}
+  h1{margin:0;font-size:15px;letter-spacing:.14em;text-transform:uppercase;font-weight:700}
+  header p{margin:4px 0 0;font-size:13px;color:var(--ink-2)}
+
+  /* ---- Signature: the turnaround band ---- */
+  .band{background:var(--ink);color:var(--paper);padding:12px 16px;display:flex;
+    align-items:baseline;justify-content:space-between;gap:12px}
+  .band .lbl{font-size:11px;letter-spacing:.16em;text-transform:uppercase;opacity:.65}
+  .band .clock{font-size:34px;font-weight:700;line-height:1}
+  .band.hot{background:var(--signal)}
+  .band.hot .lbl{opacity:.85}
+
+  #map{height:52vh;min-height:300px;width:100%;background:var(--paper-2)}
+  .leaflet-container{font-family:inherit}
+
+  .layerbar{display:flex;border-bottom:1px solid var(--line)}
+  .layerbar button{flex:1;background:var(--paper);border:0;border-right:1px solid var(--line);
+    padding:9px 4px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);
+    font-weight:600;cursor:pointer}
+  .layerbar button:last-child{border-right:0}
+  .layerbar button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+
+  section{padding:14px 16px;border-bottom:1px solid var(--line)}
+  h2{margin:0 0 10px;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-2);font-weight:700}
+
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line)}
+  .cell{background:var(--paper);padding:10px 8px;text-align:center}
+  .cell .v{font-size:26px;font-weight:700;line-height:1.1}
+  .cell .u{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);margin-top:2px}
+  .cell.wide{grid-column:span 3;text-align:left;padding:10px 12px}
+
+  .stops{list-style:none;margin:0;padding:0}
+  .stops li{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px dotted var(--line)}
+  .stops li:last-child{border-bottom:0}
+  .stops button{flex:0 0 auto;border:1.5px solid var(--ink);background:var(--paper);color:var(--ink);
+    font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:6px 10px;cursor:pointer}
+  .stops li[data-active="1"] button{background:var(--ink);color:var(--paper)}
+  .stops .nm{flex:1;font-size:14px}
+  .stops .co{font-size:11px;color:var(--ink-2)}
+
+  .gate{border-left:4px solid var(--signal);padding:10px 0 10px 12px;margin-bottom:12px}
+  .gate b{display:block;font-size:13px;margin-bottom:3px}
+  .gate span{font-size:13px;color:var(--ink-2)}
+  .gate.ok{border-left-color:var(--go)}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  td{padding:6px 0;border-bottom:1px dotted var(--line);vertical-align:top}
+  td:first-child{width:74px;font-weight:700;white-space:nowrap}
+  tr:last-child td{border-bottom:0}
+
+  .note{font-size:12px;color:var(--ink-2);margin-top:10px}
+  .warn{background:var(--paper-2);border:1px solid var(--line);padding:10px 12px;font-size:13px;margin-top:10px}
+  a{color:var(--sea)}
+  .linkrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+  .linkrow a{display:inline-block;border:1.5px solid var(--sea);padding:7px 11px;font-size:12px;
+    font-weight:600;text-decoration:none;letter-spacing:.04em}
+  footer{padding:16px;font-size:11px;color:var(--ink-2)}
+  @media (prefers-reduced-motion:no-preference){.band .clock{transition:none}}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Cala Figuera · 4-h-Tour</h1>
+  <p>Kein Ersatz für Seekarte und Ausguck. Alle Punkte sind Orientierungspunkte.</p>
+</header>
+
+<div class="band" id="band">
+  <div>
+    <div class="lbl">Umkehr spätestens</div>
+    <div class="clock mono" id="countdown">–:–:–</div>
+  </div>
+  <div style="text-align:right">
+    <div class="lbl">17:20 Uhr</div>
+    <div class="mono" id="nowclock" style="font-size:18px">–:–</div>
+  </div>
+</div>
+
+<div class="layerbar">
+  <button id="btnSat" aria-pressed="true">Satellit</button>
+  <button id="btnOsm" aria-pressed="false">Karte</button>
+  <button id="btnSea" aria-pressed="true">Seezeichen</button>
+  <button id="btnFollow" aria-pressed="true">Folgen</button>
+</div>
+
+<div id="map"></div>
+
+<section>
+  <h2>Live</h2>
+  <div class="grid">
+    <div class="cell"><div class="v mono" id="sog">–</div><div class="u">Knoten</div></div>
+    <div class="cell"><div class="v mono" id="dist">–</div><div class="u">sm zum Ziel</div></div>
+    <div class="cell"><div class="v mono" id="brg">–</div><div class="u">Peilung</div></div>
+    <div class="cell wide"><div class="u" style="margin:0 0 3px">Nächster Punkt</div>
+      <div id="target" style="font-size:15px;font-weight:700">Cala Santanyí</div>
+      <div class="u" style="margin-top:4px">Ankunft bei aktueller Fahrt: <span class="mono" id="eta">–</span></div>
+    </div>
+  </div>
+  <div class="warn" id="gpsmsg">GPS noch nicht aktiv. Tippe unten auf „Standort freigeben“.</div>
+  <div class="linkrow">
+    <a href="#" id="btnGps">Standort freigeben</a>
+    <a href="#" id="btnMark">Track löschen</a>
+  </div>
+</section>
+
+<section>
+  <h2>Ziel wählen</h2>
+  <ul class="stops" id="stoplist"></ul>
+</section>
+
+<section>
+  <h2>Entscheidungspunkte</h2>
+  <div class="gate">
+    <b>16:00 Uhr – Cala Llombards erreicht?</b>
+    <span>Nein → Caló des Moro streichen. Ja → weiter zur zweiten Prüfung.</span>
+  </div>
+  <div class="gate">
+    <b>16:20 Uhr – Fahrt über Grund unter 4,0 kn auf Etappe 1?</b>
+    <span>Ja → Caló des Moro streichen, ab Cala Llombards direkt zurück.</span>
+  </div>
+  <div class="gate">
+    <b>Böen über 15 kn oder Welle kurz und steil?</b>
+    <span>Caló des Moro streichen. Die Rückfahrt ist mit 2,9 sm die längste Etappe.</span>
+  </div>
+  <div class="gate ok">
+    <b>17:20 Uhr – harte Umkehr, ohne Diskussion.</b>
+    <span>Auch wenn gerade jemand im Wasser ist. Der Zähler oben läuft darauf zu.</span>
+  </div>
+</section>
+
+<section>
+  <h2>Zeitplan</h2>
+  <table>
+    <tr><td>14:30</td><td>Am Steg: Tank und Reserve prüfen, Handys auf 100 %, Offline-Karten geladen, Live-Standort an die Person an Land geschickt</td></tr>
+    <tr><td>15:00</td><td>Ablegen Cala Figuera, aus der Einfahrt langsam heraus</td></tr>
+    <tr><td>15:20</td><td>Cala Santanyí – Geschwindigkeit von Etappe 1 notieren</td></tr>
+    <tr><td>15:50</td><td>Weiter nach Cala Llombards</td></tr>
+    <tr><td>16:00</td><td>Cala Llombards – Baden</td></tr>
+    <tr><td>16:20</td><td>Entscheidung Caló des Moro ja/nein</td></tr>
+    <tr><td>16:40</td><td>Caló des Moro, Ankern nur auf Sand</td></tr>
+    <tr><td>17:20</td><td>Rückfahrt, spätestens</td></tr>
+    <tr><td>18:10</td><td>Zurück in Cala Figuera, Puffer bis 19:00</td></tr>
+  </table>
+  <p class="note">Ohne Caló des Moro: ab Cala Llombards um 17:00 zurück, an gegen 17:45.</p>
+</section>
+
+<section>
+  <h2>Regeln, die vor Ort gelten</h2>
+  <p style="margin:0;font-size:13px">Nicht auf Seegras ankern – auf den Balearen verboten und kontrolliert. Ankerplatz vorher im offiziellen Viewer ansehen, Sandflecken sind auf dem Satellitenlayer oben hell und deutlich sichtbar. In Badezonen nicht fahren, Ein- und Ausfahrt nur langsam und außen herum.</p>
+  <div class="linkrow">
+    <a href="https://ideib.caib.es/posidonia/" target="_blank" rel="noopener">Posidonia-Viewer</a>
+    <a href="https://map.openseamap.org/" target="_blank" rel="noopener">OpenSeaMap</a>
+    <a href="https://www.windy.com/?39.325,3.145,12" target="_blank" rel="noopener">Windy</a>
+    <a href="https://www.aemet.es/en/eltiempo/prediccion/maritima" target="_blank" rel="noopener">AEMET Seewetter</a>
+  </div>
+</section>
+
+<footer>
+  Positionsanzeige und Geschwindigkeit kommen vom GPS des Geräts. Ein iPad ohne Mobilfunkmodul hat keinen GPS-Empfänger und zeigt hier nichts Brauchbares.
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const WP = [
+  {id:'figuera', n:'Cala Figuera (Hafen)',      lat:39.3385, lon:3.1683, t:'Start und Ziel'},
+  {id:'fig_out', n:'Ansteuerung Cala Figuera',  lat:39.3320, lon:3.1700, t:'Wartepunkt vor der Einfahrt'},
+  {id:'santanyi',n:'Cala Santanyí',             lat:39.3263, lon:3.1483, t:'Anlauf vorgelagert'},
+  {id:'llombards',n:'Cala Llombards',           lat:39.3242, lon:3.1433, t:'Anlauf vorgelagert'},
+  {id:'moro',    n:'Caló des Moro',             lat:39.3120, lon:3.1200, t:'korrigiert, ca. 250 m vorgelagert'}
+];
+const ORDER = ['santanyi','llombards','moro','figuera'];
+
+const map = L.map('map',{zoomControl:true}).setView([39.3270,3.1480],13);
+const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  {maxZoom:19, attribution:'Esri'}).addTo(map);
+const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  {maxZoom:19, attribution:'© OpenStreetMap'});
+const sea = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png',
+  {maxZoom:18, attribution:'OpenSeaMap'}).addTo(map);
+
+let follow = true;
+function press(el,on){el.setAttribute('aria-pressed',on?'true':'false');}
+btnSat.onclick=()=>{map.addLayer(sat);map.removeLayer(osm);press(btnSat,1);press(btnOsm,0);};
+btnOsm.onclick=()=>{map.addLayer(osm);map.removeLayer(sat);press(btnOsm,1);press(btnSat,0);};
+btnSea.onclick=()=>{const on=map.hasLayer(sea);on?map.removeLayer(sea):map.addLayer(sea);press(btnSea,!on);};
+btnFollow.onclick=()=>{follow=!follow;press(btnFollow,follow);};
+map.on('dragstart',()=>{follow=false;press(btnFollow,false);});
+
+WP.forEach(w=>{
+  L.circleMarker([w.lat,w.lon],{radius:7,color:'#141B22',weight:2,fillColor:'#C2461E',fillOpacity:1})
+   .addTo(map).bindPopup('<b>'+w.n+'</b><br>'+w.t+'<br>'+w.lat.toFixed(4)+', '+w.lon.toFixed(4));
+});
+L.polyline(ORDER.map(id=>{const w=WP.find(x=>x.id===id);return [w.lat,w.lon];}),
+  {color:'#C2461E',weight:2,dashArray:'6 6',opacity:.8}).addTo(map);
+
+let target = WP.find(w=>w.id==='santanyi');
+const list = document.getElementById('stoplist');
+ORDER.forEach(id=>{
+  const w = WP.find(x=>x.id===id);
+  const li = document.createElement('li');
+  li.innerHTML = '<button>Ziel</button><span class="nm">'+w.n+
+    '<br><span class="co mono">'+w.lat.toFixed(4)+', '+w.lon.toFixed(4)+'</span></span>';
+  li.querySelector('button').onclick=()=>{target=w;document.getElementById('target').textContent=w.n;
+    [...list.children].forEach(c=>c.dataset.active='0'); li.dataset.active='1'; update();};
+  if(id==='santanyi') li.dataset.active='1';
+  list.appendChild(li);
+});
+
+function hav(a,b,c,d){const R=3440.065,r=Math.PI/180;
+  const dl=(c-a)*r,dg=(d-b)*r,x=Math.sin(dl/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin(dg/2)**2;
+  return 2*R*Math.asin(Math.sqrt(x));}
+function bear(a,b,c,d){const r=Math.PI/180;
+  const y=Math.sin((d-b)*r)*Math.cos(c*r);
+  const x=Math.cos(a*r)*Math.sin(c*r)-Math.sin(a*r)*Math.cos(c*r)*Math.cos((d-b)*r);
+  return (Math.atan2(y,x)/r+360)%360;}
+
+let me=null, meMark=null, meAcc=null, track=[], trackLine=null, sogAvg=null;
+
+function update(){
+  if(!me) return;
+  const d = hav(me.lat,me.lon,target.lat,target.lon);
+  const b = bear(me.lat,me.lon,target.lat,target.lon);
+  document.getElementById('dist').textContent = d.toFixed(2);
+  document.getElementById('brg').textContent = Math.round(b)+'°';
+  const s = sogAvg;
+  document.getElementById('sog').textContent = (s===null?'–':s.toFixed(1));
+  if(s && s>0.5){
+    const mins = d/s*60;
+    const eta = new Date(Date.now()+mins*60000);
+    document.getElementById('eta').textContent =
+      String(eta.getHours()).padStart(2,'0')+':'+String(eta.getMinutes()).padStart(2,'0')+
+      '  ('+Math.round(mins)+' min)';
+  } else document.getElementById('eta').textContent='–';
+}
+
+function onPos(p){
+  me={lat:p.coords.latitude, lon:p.coords.longitude};
+  document.getElementById('gpsmsg').style.display='none';
+  const kn = (p.coords.speed!=null && !isNaN(p.coords.speed)) ? p.coords.speed*1.94384 : null;
+  if(kn!==null) sogAvg = (sogAvg===null) ? kn : sogAvg*0.7 + kn*0.3;
+  if(!meMark){
+    meMark = L.circleMarker([me.lat,me.lon],{radius:8,color:'#fff',weight:3,fillColor:'#1B4A6B',fillOpacity:1}).addTo(map);
+    meAcc  = L.circle([me.lat,me.lon],{radius:p.coords.accuracy,color:'#1B4A6B',weight:1,fillOpacity:.07}).addTo(map);
+    trackLine = L.polyline([],{color:'#1B4A6B',weight:3,opacity:.85}).addTo(map);
+    map.setView([me.lat,me.lon],15);
+  } else {
+    meMark.setLatLng([me.lat,me.lon]); meAcc.setLatLng([me.lat,me.lon]); meAcc.setRadius(p.coords.accuracy);
+  }
+  track.push([me.lat,me.lon]); trackLine.setLatLngs(track);
+  if(follow) map.panTo([me.lat,me.lon],{animate:false});
+  update();
+}
+function onErr(e){
+  document.getElementById('gpsmsg').style.display='block';
+  document.getElementById('gpsmsg').textContent =
+    'Kein GPS: '+e.message+' — Datei direkt in Safari oder Chrome öffnen, nicht in einer Vorschau, und Standortzugriff erlauben.';
+}
+document.getElementById('btnGps').onclick=(ev)=>{
+  ev.preventDefault();
+  if(!navigator.geolocation){onErr({message:'Gerät liefert keine Position'});return;}
+  navigator.geolocation.watchPosition(onPos,onErr,{enableHighAccuracy:true,maximumAge:2000,timeout:20000});
+};
+document.getElementById('btnMark').onclick=(ev)=>{ev.preventDefault();track=[];if(trackLine)trackLine.setLatLngs([]);};
+
+function tick(){
+  const now=new Date();
+  document.getElementById('nowclock').textContent =
+    String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  const t=new Date(now); t.setHours(17,20,0,0);
+  let ms=t-now;
+  const band=document.getElementById('band');
+  if(ms<=0){document.getElementById('countdown').textContent='JETZT ZURÜCK';band.classList.add('hot');}
+  else{
+    const h=Math.floor(ms/3600000),m=Math.floor(ms%3600000/60000),s=Math.floor(ms%60000/1000);
+    document.getElementById('countdown').textContent=
+      String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+    band.classList.toggle('hot', ms<20*60000);
+  }
+}
+tick(); setInterval(tick,1000);
+</script>
+</body>
+</html>
