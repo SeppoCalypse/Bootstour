@@ -46,6 +46,25 @@ bezahlten Plan verfügbar. Auf dem kostenlosen Plan muss das Repo dafür auf
 visibility) — in der Datei stehen keine persönlichen Daten, nur Wegpunkte und
 Zeiten.
 
+## Die Route
+
+Gefahren wird an der Küste entlang und auf derselben Spur zurück:
+
+```
+Cala Figuera → Ansteuerung → Cala Santanyí → Cala Llombards → Caló des Moro → und zurück
+```
+
+Zusammen 6,1 sm, die Rückfahrt ab Caló des Moro allein 3,0 sm.
+
+Die frühere Darstellung verband die Ziele direkt, wodurch die Rückfahrt als gerade Linie
+quer über die Landzunge lief. Belegbar an den Koordinaten selbst: Cala Santanyí und Cala
+Llombards liegen 111 m bzw. 53 m seewärts dieser Linie, obwohl beide Punkte der Küste
+bereits vorgelagert sind.
+
+Die Zwischenpunkte sind keine berechneten Küstenabstände, sondern die vorhandenen
+Anlaufpunkte in gefahrener Reihenfolge. Ob jede einzelne Etappe an den Felsnasen frei
+läuft, zeigt nur der Satellitenlayer — einmal durchzoomen, bevor es losgeht.
+
 ## Was die Seite zur Laufzeit nachlädt
 
 - Leaflet 1.9.4 von cdnjs.cloudflare.com
