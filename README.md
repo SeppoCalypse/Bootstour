@@ -1,1 +1,58 @@
 # Bootstour
+
+Navigationshilfe für die 4-Stunden-Tour ab Cala Figuera (`index.html`).
+Eine einzelne HTML-Datei: Karte, Live-Position über das Geräte-GPS, Distanz und
+Peilung zum nächsten Ziel, Umkehr-Countdown auf 17:20 Uhr.
+
+## Datei im Browser öffnen
+
+### Auf dem Mac, schnell zum Anschauen
+
+1. Auf GitHub `index.html` öffnen, oben rechts auf **Raw**, dann sichern
+   (`⌘S`), oder das ganze Repo über **Code → Download ZIP** laden.
+2. Die Datei doppelklicken. Safari oder Chrome zeigt sie sofort an.
+
+Karte, Zeitplan und Entscheidungspunkte funktionieren so vollständig.
+Nur die Live-Position bleibt leer: Chrome gibt bei `file://`-Adressen kein GPS
+frei, Safari ist unzuverlässig damit.
+
+### Auf dem Mac, mit GPS zum Testen
+
+Im Ordner mit der Datei:
+
+```sh
+python3 -m http.server 8000
+```
+
+Dann `http://localhost:8000/` im Browser öffnen. `localhost` gilt als sicherer
+Kontext, der Standortzugriff wird also abgefragt und die Live-Anzeige läuft.
+
+### Auf dem iPhone an Bord
+
+Dafür braucht die Seite eine echte HTTPS-Adresse — iOS gibt den Standort sonst
+nicht frei. GitHub Pages erledigt das aus diesem Repo heraus:
+
+1. Repo → **Settings → Pages**
+2. Unter *Build and deployment*: Source **Deploy from a branch**,
+   Branch **main**, Ordner **/ (root)**, **Save**
+3. Nach ein bis zwei Minuten liegt die Seite unter
+   `https://seppocalypse.github.io/Bootstour/`
+4. Auf dem iPhone in Safari öffnen, **Teilen → Zum Home-Bildschirm**. Dann
+   startet sie wie eine App, ohne Adressleiste.
+
+Zu beachten: Bei einem privaten Repo ist GitHub Pages nur mit einem
+bezahlten Plan verfügbar. Auf dem kostenlosen Plan muss das Repo dafür auf
+öffentlich gestellt werden (Settings → General → Change repository
+visibility) — in der Datei stehen keine persönlichen Daten, nur Wegpunkte und
+Zeiten.
+
+## Was die Seite zur Laufzeit nachlädt
+
+- Leaflet 1.9.4 von cdnjs.cloudflare.com
+- Satellitenkacheln von ArcGIS World Imagery, Straßenkarte von OpenStreetMap,
+  Seezeichen von OpenSeaMap
+
+Ohne Netz bleibt die Karte also leer. Vor dem Ablegen einmal mit Empfang
+öffnen und die Kacheln des Fahrgebiets durchzoomen, dann liegen sie im
+Browser-Cache. Als Rückfallebene zusätzlich die Offline-Karte in Navionics
+oder Apple Karten laden — das steht so auch im Zeitplan um 14:30.
