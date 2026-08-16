@@ -46,6 +46,22 @@ bezahlten Plan verfügbar. Auf dem kostenlosen Plan muss das Repo dafür auf
 visibility) — in der Datei stehen keine persönlichen Daten, nur Wegpunkte und
 Zeiten.
 
+## Version
+
+Die Seite zeigt ihre Version oben rechts und im Fuß unter „Plan". Gepflegt wird sie an
+einer einzigen Stelle in `index.html` (`const VERSION`), die Änderungen stehen in
+[CHANGELOG.md](CHANGELOG.md). Zeigt das Handy eine ältere Nummer als der Changelog,
+hängt der Browser im Cache und die Seite muss neu geladen werden.
+
+## Aufbau
+
+Zwei Modi, oben umschaltbar:
+
+- **Fahren** — Umkehr-Countdown, Karte, Instrumente, Zielwahl
+- **Plan** — Entscheidungspunkte, Zeitplan, Regeln vor Ort
+
+Der Countdown bleibt in beiden Modi oben stehen.
+
 ## Die Route
 
 Gefahren wird an der Küste entlang und auf derselben Spur zurück:
