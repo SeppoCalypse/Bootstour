@@ -7,14 +7,16 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
   :root{
-    --paper:#F2EDE3;
-    --paper-2:#E7DFD0;
-    --ink:#141B22;
-    --ink-2:#4A5866;
-    --line:#C9BEA9;
-    --signal:#C2461E;
-    --go:#1E6B4F;
-    --sea:#1B4A6B;
+    --paper:#FBFCFD;
+    --paper-2:#EEF2F5;
+    --ink:#0B1A24;
+    --ink-2:#3C4C58;
+    --line:#C2CCD4;
+    --line-2:#DCE3E8;
+    --signal:#D8442A;
+    --go:#12694E;
+    --sea:#0E7C86;
+    --tap:44px;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);
@@ -22,72 +24,118 @@
     font-size:16px;line-height:1.45;overscroll-behavior:none}
   .mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
 
-  header{padding:14px 16px 10px;border-bottom:2px solid var(--ink)}
-  h1{margin:0;font-size:15px;letter-spacing:.14em;text-transform:uppercase;font-weight:700}
-  header p{margin:4px 0 0;font-size:13px;color:var(--ink-2)}
+  /* ---- Modi: was gerade nicht gebraucht wird, ist weg, nicht nur weiter unten ---- */
+  body.m-fahren .plan, body.m-plan .fahren{display:none}
 
-  /* ---- Signature: the turnaround band ---- */
-  .band{background:var(--ink);color:var(--paper);padding:12px 16px;display:flex;
-    align-items:baseline;justify-content:space-between;gap:12px}
-  .band .lbl{font-size:11px;letter-spacing:.16em;text-transform:uppercase;opacity:.65}
-  .band .clock{font-size:34px;font-weight:700;line-height:1}
+  header{display:flex;align-items:flex-start;gap:12px;padding:12px 16px 0}
+  header .titel{flex:1;min-width:0}
+  h1{margin:0;font-size:17px;font-weight:700;letter-spacing:-.01em}
+  header p{margin:2px 0 0;font-size:12.5px;color:var(--ink-2)}
+  .ver{flex:0 0 auto;font-size:11px;color:var(--ink-2);border:1px solid var(--line);
+    padding:2px 6px;letter-spacing:.04em}
+
+  /* ---- Moduswahl: oben, als Schalter am Instrument ---- */
+  .modus{display:flex;margin:12px 0 0;border-top:1px solid var(--line);border-bottom:2px solid var(--ink)}
+  .modus button{flex:1;min-height:var(--tap);background:none;border:0;border-right:1px solid var(--line-2);
+    font-family:inherit;font-size:13px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--ink-2);cursor:pointer}
+  .modus button:last-child{border-right:0}
+  .modus button[aria-pressed="true"]{color:var(--ink);box-shadow:inset 0 -3px 0 var(--signal)}
+
+  /* ---- Signatur: das Umkehr-Band, klebt oben ---- */
+  .band{position:sticky;top:0;z-index:1200;background:var(--ink);color:var(--paper);
+    padding:9px 16px;display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+  .band .lbl{font-size:11px;letter-spacing:.14em;text-transform:uppercase;opacity:.7}
+  .band .clock{font-size:30px;font-weight:700;line-height:1.05}
   .band.hot{background:var(--signal)}
-  .band.hot .lbl{opacity:.85}
+  .band.hot .lbl{opacity:.9}
 
-  #map{height:52vh;min-height:300px;width:100%;background:var(--paper-2)}
+  /* ---- Karte mit aufgesetzten Schaltern, spart die Leiste darunter ---- */
+  .kartenfeld{position:relative;z-index:0}
+  #map{height:46vh;min-height:280px;width:100%;background:var(--paper-2)}
   .leaflet-container{font-family:inherit}
+  .chips{position:absolute;top:8px;right:8px;z-index:900;display:grid;
+    grid-template-columns:repeat(2,1fr);gap:5px;width:150px}
+  .chips button{min-height:36px;background:rgba(251,252,253,.92);border:1px solid var(--ink);
+    font-family:inherit;font-size:11.5px;font-weight:600;color:var(--ink-2);cursor:pointer;padding:0 3px}
+  .chips button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
 
-  .layerbar{display:flex;border-bottom:1px solid var(--line)}
-  .layerbar button{flex:1;background:var(--paper);border:0;border-right:1px solid var(--line);
-    padding:9px 4px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);
-    font-weight:600;cursor:pointer}
-  .layerbar button:last-child{border-right:0}
-  .layerbar button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+  /* ---- Instrumente: eine Zahl fuehrt, der Rest ordnet sich unter ---- */
+  .instr{display:flex;border-bottom:1px solid var(--line)}
+  .instr .werte{flex:1;min-width:0;border-right:1px solid var(--line)}
+  .instr .haupt{padding:12px 16px 10px}
+  .instr .haupt .v{font-size:52px;font-weight:700;line-height:.95;letter-spacing:-.02em}
+  .instr .haupt .u{font-size:12px;color:var(--ink-2);margin-top:2px}
+  .instr .paar{display:flex;border-top:1px solid var(--line-2)}
+  .instr .paar div{flex:1;padding:8px 16px;border-right:1px solid var(--line-2)}
+  .instr .paar div:last-child{border-right:0}
+  .instr .paar .v{font-size:20px;font-weight:700;line-height:1.1}
+  .instr .paar .u{font-size:11.5px;color:var(--ink-2)}
+  .rose{flex:0 0 132px;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;padding:10px 6px;gap:2px}
+  .rose svg{width:96px;height:96px;display:block}
+  .rose .grad{font-size:17px;font-weight:700}
+  .rose .dev{font-size:11.5px;color:var(--ink-2);text-align:center;min-height:1.2em}
+  .rose text{font-size:13px;font-weight:700;fill:var(--ink-2);font-family:inherit}
+
+  .ziel{padding:11px 16px;border-bottom:1px solid var(--line)}
+  .ziel .u{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2)}
+  .ziel .nm{font-size:19px;font-weight:700;margin-top:1px}
+  .ziel .zeile{font-size:12.5px;color:var(--ink-2);margin-top:3px}
 
   section{padding:14px 16px;border-bottom:1px solid var(--line)}
+  section:last-of-type{border-bottom:0}
   h2{margin:0 0 10px;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-2);font-weight:700}
 
-  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line)}
-  .cell{background:var(--paper);padding:10px 8px;text-align:center}
-  .cell .v{font-size:26px;font-weight:700;line-height:1.1}
-  .cell .u{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);margin-top:2px}
-  .cell.wide{grid-column:span 3;text-align:left;padding:10px 12px}
-
   .stops{list-style:none;margin:0;padding:0}
-  .stops li{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px dotted var(--line)}
+  .stops li{display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--line-2)}
   .stops li:last-child{border-bottom:0}
-  .stops button{flex:0 0 auto;border:1.5px solid var(--ink);background:var(--paper);color:var(--ink);
-    font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:6px 10px;cursor:pointer}
+  .stops button{flex:0 0 84px;min-height:var(--tap);border:1.5px solid var(--ink);background:var(--paper);
+    color:var(--ink);font-family:inherit;font-size:12px;font-weight:700;letter-spacing:.06em;
+    text-transform:uppercase;cursor:pointer;margin:6px 0}
   .stops li[data-active="1"] button{background:var(--ink);color:var(--paper)}
-  .stops .nm{flex:1;font-size:14px}
-  .stops .co{font-size:11px;color:var(--ink-2)}
+  .stops .nm{flex:1;font-size:15px;padding:8px 0}
+  .stops .co{font-size:12px;color:var(--ink-2)}
+
+  .knopfreihe{display:flex;gap:10px;margin-top:12px}
+  .knopfreihe button{flex:1;min-height:var(--tap);background:var(--paper);border:1.5px solid var(--sea);
+    color:var(--sea);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer}
+  .knopfreihe button.primaer{background:var(--sea);color:var(--paper)}
 
   .gate{border-left:4px solid var(--signal);padding:10px 0 10px 12px;margin-bottom:12px}
-  .gate b{display:block;font-size:13px;margin-bottom:3px}
-  .gate span{font-size:13px;color:var(--ink-2)}
+  .gate b{display:block;font-size:14px;margin-bottom:3px}
+  .gate span{font-size:13.5px;color:var(--ink-2)}
   .gate.ok{border-left-color:var(--go)}
 
-  table{width:100%;border-collapse:collapse;font-size:13px}
-  td{padding:6px 0;border-bottom:1px dotted var(--line);vertical-align:top}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  td{padding:7px 0;border-bottom:1px solid var(--line-2);vertical-align:top}
   td:first-child{width:74px;font-weight:700;white-space:nowrap}
   tr:last-child td{border-bottom:0}
 
-  .note{font-size:12px;color:var(--ink-2);margin-top:10px}
-  .warn{background:var(--paper-2);border:1px solid var(--line);padding:10px 12px;font-size:13px;margin-top:10px}
+  .note{font-size:12.5px;color:var(--ink-2);margin-top:10px}
+  .warn{background:var(--paper-2);border-left:4px solid var(--signal);padding:10px 12px;font-size:13px;margin-top:12px}
   a{color:var(--sea)}
-  .linkrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
-  .linkrow a{display:inline-block;border:1.5px solid var(--sea);padding:7px 11px;font-size:12px;
-    font-weight:600;text-decoration:none;letter-spacing:.04em}
-  footer{padding:16px;font-size:11px;color:var(--ink-2)}
-  @media (prefers-reduced-motion:no-preference){.band .clock{transition:none}}
+  .linkrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+  .linkrow a{display:flex;align-items:center;min-height:var(--tap);border:1.5px solid var(--sea);
+    padding:0 12px;font-size:13px;font-weight:600;text-decoration:none}
+  footer{padding:16px;font-size:12px;color:var(--ink-2)}
+  footer .stand{margin-top:8px;padding-top:8px;border-top:1px solid var(--line-2)}
 </style>
 </head>
-<body>
+<body class="m-fahren">
 
 <header>
-  <h1>Cala Figuera · 4-h-Tour</h1>
-  <p>Kein Ersatz für Seekarte und Ausguck. Alle Punkte sind Orientierungspunkte.</p>
+  <div class="titel">
+    <h1>Cala Figuera · 4-h-Tour</h1>
+    <p>Kein Ersatz für Seekarte und Ausguck. Alle Punkte sind Orientierungspunkte.</p>
+  </div>
+  <span class="ver mono">v<span id="ver">–</span></span>
 </header>
+
+<nav class="modus">
+  <button id="mFahren" aria-pressed="true">Fahren</button>
+  <button id="mPlan" aria-pressed="false">Plan</button>
+</nav>
 
 <div class="band" id="band">
   <div>
@@ -100,92 +148,128 @@
   </div>
 </div>
 
-<div class="layerbar">
-  <button id="btnSat" aria-pressed="true">Satellit</button>
-  <button id="btnOsm" aria-pressed="false">Karte</button>
-  <button id="btnSea" aria-pressed="true">Seezeichen</button>
-  <button id="btnFollow" aria-pressed="true">Folgen</button>
-</div>
+<div class="fahren">
 
-<div id="map"></div>
-
-<section>
-  <h2>Live</h2>
-  <div class="grid">
-    <div class="cell"><div class="v mono" id="sog">–</div><div class="u">Knoten</div></div>
-    <div class="cell"><div class="v mono" id="dist">–</div><div class="u">sm zum Ziel</div></div>
-    <div class="cell"><div class="v mono" id="brg">–</div><div class="u">Peilung</div></div>
-    <div class="cell wide"><div class="u" style="margin:0 0 3px">Nächster Punkt</div>
-      <div id="target" style="font-size:15px;font-weight:700">Cala Santanyí</div>
-      <div class="u" id="via" style="margin-top:4px;display:none">Kurs zunächst auf: <span id="vianame"></span></div>
-      <div class="u" style="margin-top:4px">Ankunft bei aktueller Fahrt: <span class="mono" id="eta">–</span></div>
+  <div class="kartenfeld">
+    <div id="map"></div>
+    <div class="chips">
+      <button id="btnSat" aria-pressed="true">Satellit</button>
+      <button id="btnOsm" aria-pressed="false">Karte</button>
+      <button id="btnSea" aria-pressed="true">Seezeichen</button>
+      <button id="btnFollow" aria-pressed="true">Folgen</button>
     </div>
   </div>
-  <div class="warn" id="gpsmsg">GPS noch nicht aktiv. Tippe unten auf „Standort freigeben“.</div>
-  <div class="linkrow">
-    <a href="#" id="btnGps">Standort freigeben</a>
-    <a href="#" id="btnMark">Track löschen</a>
-  </div>
-</section>
 
-<section>
-  <h2>Ziel wählen</h2>
-  <ul class="stops" id="stoplist"></ul>
-</section>
+  <div class="ziel">
+    <div class="u">Ziel</div>
+    <div class="nm" id="target">Cala Santanyí</div>
+    <div class="zeile" id="via" style="display:none">Kurs zunächst auf: <span id="vianame"></span></div>
+  </div>
 
-<section>
-  <h2>Entscheidungspunkte</h2>
-  <div class="gate">
-    <b>16:00 Uhr – Cala Llombards erreicht?</b>
-    <span>Nein → Caló des Moro streichen. Ja → weiter zur zweiten Prüfung.</span>
+  <div class="instr">
+    <div class="werte">
+      <div class="haupt">
+        <div class="v mono" id="dist">–</div>
+        <div class="u">Seemeilen bis zum Ziel</div>
+      </div>
+      <div class="paar">
+        <div><div class="v mono" id="sog">–</div><div class="u">Knoten</div></div>
+        <div><div class="v mono" id="eta">–</div><div class="u">Ankunft</div></div>
+      </div>
+    </div>
+    <div class="rose">
+      <!-- Nordmarke ausserhalb des Rings, sonst verdeckt die Nadel sie bei Nordkurs. -->
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <text x="50" y="9" text-anchor="middle">N</text>
+        <circle cx="50" cy="50" r="38" fill="none" stroke="var(--line)" stroke-width="1"/>
+        <g stroke="var(--line)" stroke-width="1">
+          <line x1="88" y1="50" x2="81" y2="50"/><line x1="50" y1="88" x2="50" y2="81"/>
+          <line x1="12" y1="50" x2="19" y2="50"/>
+        </g>
+        <g id="nadel" transform="rotate(0 50 50)">
+          <path d="M50 17 L56 62 L50 55 L44 62 Z" fill="var(--signal)"/>
+        </g>
+        <circle cx="50" cy="50" r="3" fill="var(--ink)"/>
+      </svg>
+      <div class="grad mono" id="brg">–</div>
+      <div class="dev" id="dev"></div>
+    </div>
   </div>
-  <div class="gate">
-    <b>16:20 Uhr – Fahrt über Grund unter 4,0 kn auf Etappe 1?</b>
-    <span>Ja → Caló des Moro streichen, ab Cala Llombards direkt zurück.</span>
-  </div>
-  <div class="gate">
-    <b>Böen über 15 kn oder Welle kurz und steil?</b>
-    <span>Caló des Moro streichen. Die Rückfahrt ist mit 3,0 sm die längste Etappe.</span>
-  </div>
-  <div class="gate ok">
-    <b>17:20 Uhr – harte Umkehr, ohne Diskussion.</b>
-    <span>Auch wenn gerade jemand im Wasser ist. Der Zähler oben läuft darauf zu.</span>
-  </div>
-</section>
 
-<section>
-  <h2>Zeitplan</h2>
-  <table>
-    <tr><td>14:30</td><td>Am Steg: Tank und Reserve prüfen, Handys auf 100 %, Offline-Karten geladen, Live-Standort an die Person an Land geschickt</td></tr>
-    <tr><td>15:00</td><td>Ablegen Cala Figuera, aus der Einfahrt langsam heraus</td></tr>
-    <tr><td>15:20</td><td>Cala Santanyí – Geschwindigkeit von Etappe 1 notieren</td></tr>
-    <tr><td>15:50</td><td>Weiter nach Cala Llombards</td></tr>
-    <tr><td>16:00</td><td>Cala Llombards – Baden</td></tr>
-    <tr><td>16:20</td><td>Entscheidung Caló des Moro ja/nein</td></tr>
-    <tr><td>16:40</td><td>Caló des Moro, Ankern nur auf Sand</td></tr>
-    <tr><td>17:20</td><td>Rückfahrt, spätestens</td></tr>
-    <tr><td>18:10</td><td>Zurück in Cala Figuera, Puffer bis 19:00</td></tr>
-  </table>
-  <p class="note">Ohne Caló des Moro: ab Cala Llombards um 17:00 zurück, an gegen 17:45.</p>
-</section>
+  <section>
+    <h2>Ziel wählen</h2>
+    <ul class="stops" id="stoplist"></ul>
+    <div class="warn" id="gpsmsg">GPS noch nicht aktiv. Tippe unten auf „Standort freigeben“.</div>
+    <div class="knopfreihe">
+      <button id="btnGps" class="primaer">Standort freigeben</button>
+      <button id="btnMark">Track löschen</button>
+    </div>
+  </section>
 
-<section>
-  <h2>Regeln, die vor Ort gelten</h2>
-  <p style="margin:0;font-size:13px">Nicht auf Seegras ankern – auf den Balearen verboten und kontrolliert. Ankerplatz vorher im offiziellen Viewer ansehen, Sandflecken sind auf dem Satellitenlayer oben hell und deutlich sichtbar. In Badezonen nicht fahren, Ein- und Ausfahrt nur langsam und außen herum.</p>
-  <div class="linkrow">
-    <a href="https://ideib.caib.es/posidonia/" target="_blank" rel="noopener">Posidonia-Viewer</a>
-    <a href="https://map.openseamap.org/" target="_blank" rel="noopener">OpenSeaMap</a>
-    <a href="https://www.windy.com/?39.325,3.145,12" target="_blank" rel="noopener">Windy</a>
-    <a href="https://www.aemet.es/en/eltiempo/prediccion/maritima" target="_blank" rel="noopener">AEMET Seewetter</a>
-  </div>
-</section>
+</div><!-- /fahren -->
 
-<footer>
-  Positionsanzeige und Geschwindigkeit kommen vom GPS des Geräts. Ein iPad ohne Mobilfunkmodul hat keinen GPS-Empfänger und zeigt hier nichts Brauchbares.
-</footer>
+<div class="plan">
+
+  <section>
+    <h2>Entscheidungspunkte</h2>
+    <div class="gate">
+      <b>16:00 Uhr – Cala Llombards erreicht?</b>
+      <span>Nein → Caló des Moro streichen. Ja → weiter zur zweiten Prüfung.</span>
+    </div>
+    <div class="gate">
+      <b>16:20 Uhr – Fahrt über Grund unter 4,0 kn auf Etappe 1?</b>
+      <span>Ja → Caló des Moro streichen, ab Cala Llombards direkt zurück.</span>
+    </div>
+    <div class="gate">
+      <b>Böen über 15 kn oder Welle kurz und steil?</b>
+      <span>Caló des Moro streichen. Die Rückfahrt ist mit 3,0 sm die längste Etappe.</span>
+    </div>
+    <div class="gate ok">
+      <b>17:20 Uhr – harte Umkehr, ohne Diskussion.</b>
+      <span>Auch wenn gerade jemand im Wasser ist. Der Zähler oben läuft darauf zu.</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>Zeitplan</h2>
+    <table>
+      <tr><td>14:30</td><td>Am Steg: Tank und Reserve prüfen, Handys auf 100 %, Offline-Karten geladen, Live-Standort an die Person an Land geschickt</td></tr>
+      <tr><td>15:00</td><td>Ablegen Cala Figuera, aus der Einfahrt langsam heraus</td></tr>
+      <tr><td>15:20</td><td>Cala Santanyí – Geschwindigkeit von Etappe 1 notieren</td></tr>
+      <tr><td>15:50</td><td>Weiter nach Cala Llombards</td></tr>
+      <tr><td>16:00</td><td>Cala Llombards – Baden</td></tr>
+      <tr><td>16:20</td><td>Entscheidung Caló des Moro ja/nein</td></tr>
+      <tr><td>16:40</td><td>Caló des Moro, Ankern nur auf Sand</td></tr>
+      <tr><td>17:20</td><td>Rückfahrt, spätestens</td></tr>
+      <tr><td>18:10</td><td>Zurück in Cala Figuera, Puffer bis 19:00</td></tr>
+    </table>
+    <p class="note">Ohne Caló des Moro: ab Cala Llombards um 17:00 zurück, an gegen 17:45.</p>
+  </section>
+
+  <section>
+    <h2>Regeln, die vor Ort gelten</h2>
+    <p style="margin:0;font-size:13.5px">Nicht auf Seegras ankern – auf den Balearen verboten und kontrolliert. Ankerplatz vorher im offiziellen Viewer ansehen, Sandflecken sind auf dem Satellitenlayer oben hell und deutlich sichtbar. In Badezonen nicht fahren, Ein- und Ausfahrt nur langsam und außen herum.</p>
+    <div class="linkrow">
+      <a href="https://ideib.caib.es/posidonia/" target="_blank" rel="noopener">Posidonia-Viewer</a>
+      <a href="https://map.openseamap.org/" target="_blank" rel="noopener">OpenSeaMap</a>
+      <a href="https://www.windy.com/?39.325,3.145,12" target="_blank" rel="noopener">Windy</a>
+      <a href="https://www.aemet.es/en/eltiempo/prediccion/maritima" target="_blank" rel="noopener">AEMET Seewetter</a>
+    </div>
+  </section>
+
+  <footer>
+    Positionsanzeige und Geschwindigkeit kommen vom GPS des Geräts. Ein iPad ohne Mobilfunkmodul hat keinen GPS-Empfänger und zeigt hier nichts Brauchbares.
+    <div class="stand">Stand <span class="mono" id="ver2">–</span>. Steht oben rechts eine ältere Nummer, zeigt der Browser eine zwischengespeicherte Fassung – Seite neu laden.</div>
+  </footer>
+
+</div><!-- /plan -->
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
+const VERSION = '1.0';
+document.getElementById('ver').textContent  = VERSION;
+document.getElementById('ver2').textContent = VERSION;
+
 const WP = [
   {id:'figuera', n:'Cala Figuera (Hafen)',      lat:39.3385, lon:3.1683, t:'Start und Ziel'},
   {id:'fig_out', n:'Ansteuerung Cala Figuera',  lat:39.3320, lon:3.1700, t:'Wartepunkt vor der Einfahrt'},
@@ -203,6 +287,20 @@ const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
 const sea = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png',
   {maxZoom:18, attribution:'OpenSeaMap'}).addTo(map);
 
+// ---- Moduswahl. Die Karte muss nach dem Einblenden neu vermessen werden. ----
+function setModus(m){
+  document.body.className = 'm-'+m;
+  mFahren.setAttribute('aria-pressed', String(m==='fahren'));
+  mPlan.setAttribute('aria-pressed', String(m==='plan'));
+  try{ localStorage.setItem('bootstour-modus', m); }catch(e){}
+  if(m==='fahren') setTimeout(()=>map.invalidateSize(),0);
+}
+mFahren.onclick=()=>setModus('fahren');
+mPlan.onclick=()=>setModus('plan');
+let startModus='fahren';
+try{ if(localStorage.getItem('bootstour-modus')==='plan') startModus='plan'; }catch(e){}
+setModus(startModus);
+
 let follow = true;
 function press(el,on){el.setAttribute('aria-pressed',on?'true':'false');}
 btnSat.onclick=()=>{map.addLayer(sat);map.removeLayer(osm);press(btnSat,1);press(btnOsm,0);};
@@ -212,14 +310,14 @@ btnFollow.onclick=()=>{follow=!follow;press(btnFollow,follow);};
 map.on('dragstart',()=>{follow=false;press(btnFollow,false);});
 
 WP.forEach(w=>{
-  L.circleMarker([w.lat,w.lon],{radius:7,color:'#141B22',weight:2,fillColor:'#C2461E',fillOpacity:1})
+  L.circleMarker([w.lat,w.lon],{radius:7,color:'#0B1A24',weight:2,fillColor:'#D8442A',fillOpacity:1})
    .addTo(map).bindPopup('<b>'+w.n+'</b><br>'+w.t+'<br>'+w.lat.toFixed(4)+', '+w.lon.toFixed(4));
 });
 // Gefahrener Weg: hin an der Kueste entlang, zurueck auf derselben Spur.
 // Die frueher gezeichnete Abkuerzung Caló des Moro -> Hafen lief quer ueber die Landzunge.
 const LEG_PATH = ['figuera','fig_out','santanyi','llombards','moro'];
 L.polyline(LEG_PATH.map(id=>{const w=WP.find(x=>x.id===id);return [w.lat,w.lon];}),
-  {color:'#C2461E',weight:2,dashArray:'6 6',opacity:.8}).addTo(map);
+  {color:'#D8442A',weight:2,dashArray:'6 6',opacity:.85}).addTo(map);
 
 let target = WP.find(w=>w.id==='santanyi');
 const list = document.getElementById('stoplist');
@@ -294,26 +392,34 @@ function update(){
   } else via.style.display = 'none';
   document.getElementById('dist').textContent = d.toFixed(2);
   document.getElementById('brg').textContent = Math.round(b)+'°';
+  document.getElementById('nadel').setAttribute('transform','rotate('+b.toFixed(1)+' 50 50)');
   const s = sogAvg;
   document.getElementById('sog').textContent = (s===null?'–':s.toFixed(1));
+  // Kursabweichung nur bei Fahrt: unter 1 kn ist die Richtung vom GPS Rauschen.
+  const dev = document.getElementById('dev');
+  if(me.hdg!==null && s!==null && s>1){
+    const diff = ((b-me.hdg+540)%360)-180;
+    dev.textContent = Math.abs(diff)<3 ? 'auf Kurs'
+      : Math.round(Math.abs(diff))+'° nach '+(diff>0?'steuerbord':'backbord');
+  } else dev.textContent='';
   if(s && s>0.5){
     const mins = d/s*60;
     const eta = new Date(Date.now()+mins*60000);
     document.getElementById('eta').textContent =
-      String(eta.getHours()).padStart(2,'0')+':'+String(eta.getMinutes()).padStart(2,'0')+
-      '  ('+Math.round(mins)+' min)';
+      String(eta.getHours()).padStart(2,'0')+':'+String(eta.getMinutes()).padStart(2,'0');
   } else document.getElementById('eta').textContent='–';
 }
 
 function onPos(p){
-  me={lat:p.coords.latitude, lon:p.coords.longitude};
+  me={lat:p.coords.latitude, lon:p.coords.longitude,
+      hdg:(p.coords.heading!=null && !isNaN(p.coords.heading)) ? p.coords.heading : null};
   document.getElementById('gpsmsg').style.display='none';
   const kn = (p.coords.speed!=null && !isNaN(p.coords.speed)) ? p.coords.speed*1.94384 : null;
   if(kn!==null) sogAvg = (sogAvg===null) ? kn : sogAvg*0.7 + kn*0.3;
   if(!meMark){
-    meMark = L.circleMarker([me.lat,me.lon],{radius:8,color:'#fff',weight:3,fillColor:'#1B4A6B',fillOpacity:1}).addTo(map);
-    meAcc  = L.circle([me.lat,me.lon],{radius:p.coords.accuracy,color:'#1B4A6B',weight:1,fillOpacity:.07}).addTo(map);
-    trackLine = L.polyline([],{color:'#1B4A6B',weight:3,opacity:.85}).addTo(map);
+    meMark = L.circleMarker([me.lat,me.lon],{radius:8,color:'#fff',weight:3,fillColor:'#0E7C86',fillOpacity:1}).addTo(map);
+    meAcc  = L.circle([me.lat,me.lon],{radius:p.coords.accuracy,color:'#0E7C86',weight:1,fillOpacity:.07}).addTo(map);
+    trackLine = L.polyline([],{color:'#0E7C86',weight:3,opacity:.85}).addTo(map);
     map.setView([me.lat,me.lon],15);
   } else {
     meMark.setLatLng([me.lat,me.lon]); meAcc.setLatLng([me.lat,me.lon]); meAcc.setRadius(p.coords.accuracy);
@@ -327,12 +433,11 @@ function onErr(e){
   document.getElementById('gpsmsg').textContent =
     'Kein GPS: '+e.message+' — Datei direkt in Safari oder Chrome öffnen, nicht in einer Vorschau, und Standortzugriff erlauben.';
 }
-document.getElementById('btnGps').onclick=(ev)=>{
-  ev.preventDefault();
+btnGps.onclick=()=>{
   if(!navigator.geolocation){onErr({message:'Gerät liefert keine Position'});return;}
   navigator.geolocation.watchPosition(onPos,onErr,{enableHighAccuracy:true,maximumAge:2000,timeout:20000});
 };
-document.getElementById('btnMark').onclick=(ev)=>{ev.preventDefault();track=[];if(trackLine)trackLine.setLatLngs([]);};
+btnMark.onclick=()=>{track=[];if(trackLine)trackLine.setLatLngs([]);};
 
 function tick(){
   const now=new Date();
