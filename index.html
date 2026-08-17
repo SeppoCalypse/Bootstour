@@ -122,7 +122,25 @@
   #editpanel .meldung{font-size:12.5px;color:var(--go);margin-top:6px;min-height:1.2em}
   #editpanel textarea{width:100%;height:88px;margin-top:10px;padding:8px;border:1px solid var(--line);
     background:var(--paper-2);color:var(--ink);font-family:ui-monospace,Menlo,monospace;font-size:11.5px}
+  #editpanel .punkte{margin-top:12px;border-top:1px solid var(--line-2)}
+  #editpanel .pz{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line-2)}
+  #editpanel .pz .pn{flex:1 1 100%;font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:6px}
+  #editpanel .pz input{width:96px;min-height:var(--tap);padding:0 8px;border:1px solid var(--line);
+    background:var(--paper);color:var(--ink);font-family:ui-monospace,Menlo,monospace;font-size:13px}
+  #editpanel .pz .weg{flex:0 0 auto;min-height:var(--tap);min-width:44px;background:var(--paper);
+    border:1.5px solid var(--signal);color:var(--signal);font-family:inherit;font-size:15px;
+    font-weight:700;cursor:pointer}
+  #editpanel .pz{flex-wrap:wrap}
+
+  /* ---- Drei Stufen auf der Karte ---- */
+  .mk-start{background:var(--ink);border:2px solid var(--paper);box-shadow:0 0 0 1px var(--ink)}
+  .mk-start::after{content:'Start / Ziel';position:absolute;left:50%;top:24px;transform:translateX(-50%);
+    white-space:nowrap;font-size:10.5px;font-weight:700;letter-spacing:.06em;color:var(--ink);
+    background:rgba(251,252,253,.86);padding:1px 4px}
+  .mk-ziel{background:var(--signal);border:2px solid var(--ink);border-radius:50%}
+  .mk-weg{background:rgba(251,252,253,.9);border:2px solid var(--sea);border-radius:50%}
   .via-icon{background:var(--sea);border:3px solid #fff;border-radius:50%;box-shadow:0 0 0 1px var(--ink)}
+  .leaflet-marker-draggable{cursor:grab}
 
   .gate{border-left:4px solid var(--signal);padding:10px 0 10px 12px;margin-bottom:12px}
   .gate b{display:block;font-size:14px;margin-bottom:3px}
@@ -232,7 +250,8 @@
 
     <div id="editpanel" style="display:none">
       <div class="hinweis">Ein Tipp auf die Karte setzt einen Zwischenpunkt in die nächstgelegene
-        Etappe. Punkte lassen sich ziehen, ein Tipp auf einen Punkt bietet „löschen“ an.
+        Etappe. Alle Punkte lassen sich ziehen, auch Start, Ziel und die Anlaufpunkte.
+        Unten stehen sie mit Breite und Länge in Dezimalgrad zum genauen Eintippen.
         Sichern legt die Route im Browser ab – sie gilt dann auch ohne Empfang.</div>
       <div class="stat"><span id="rtPunkte">keine Zwischenpunkte</span> · <span id="rtLaenge">–</span> sm gesamt</div>
       <div class="meldung" id="rtMeldung"></div>
@@ -241,6 +260,7 @@
         <button id="btnReset">Zurücksetzen</button>
         <button id="btnCoords">Koordinaten</button>
       </div>
+      <div class="punkte" id="punkteListe"></div>
       <textarea id="coords" readonly style="display:none"></textarea>
     </div>
   </section>
@@ -305,7 +325,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
-const VERSION = '1.1';
+const VERSION = '1.2';
 document.getElementById('ver').textContent  = VERSION;
 document.getElementById('ver2').textContent = VERSION;
 
@@ -370,15 +390,50 @@ btnSea.onclick=()=>{const on=map.hasLayer(sea);on?map.removeLayer(sea):map.addLa
 btnFollow.onclick=()=>{follow=!follow;press(btnFollow,follow);};
 map.on('dragstart',()=>{follow=false;press(btnFollow,false);});
 
-WP.forEach(w=>{
-  L.circleMarker([w.lat,w.lon],{radius:7,color:'#0B1A24',weight:2,fillColor:'#D8442A',fillOpacity:1})
-   .addTo(map).bindPopup('<b>'+w.n+'</b><br>'+w.t+'<br>'+w.lat.toFixed(4)+', '+w.lon.toFixed(4));
-});
+// Ausgangskoordinaten einfrieren, damit Zuruecksetzen auch verschobene Wegpunkte heilt.
+const WP0 = WP.map(w=>({id:w.id, lat:w.lat, lon:w.lon}));
+let bearbeiten = false;
+
+// Drei Stufen: Hafen, Badebucht, blosse Wegfuehrung. L.marker statt circleMarker, weil
+// nur Marker ziehbar sind; das Aussehen kommt aus dem Stylesheet.
+function stufe(w){
+  if(w.via) return 'via-icon';
+  if(w.id === 'figuera') return 'mk-start';
+  return ORDER.includes(w.id) ? 'mk-ziel' : 'mk-weg';
+}
+function symbol(w){
+  const k = stufe(w);
+  const gr = k==='mk-start' ? 20 : k==='mk-ziel' ? 16 : 14;
+  return L.divIcon({className:k, html:'', iconSize:[gr,gr], iconAnchor:[gr/2,gr/2]});
+}
+const marker = {};
+function zeichneMarker(){
+  PATH.forEach(w=>{
+    let m = marker[w.id];
+    if(!m){
+      m = marker[w.id] = L.marker([w.lat,w.lon],{icon:symbol(w)}).addTo(map);
+      m.on('drag', e=>{
+        const ll = e.target.getLatLng(); w.lat = ll.lat; w.lon = ll.lng;
+        routeLine.setLatLngs(PATH.map(x=>[x.lat,x.lon]));
+      });
+      m.on('dragend', ()=>{ buildRoute(false); meldung('Verschoben – zum Behalten sichern.'); });
+    } else m.setLatLng([w.lat,w.lon]);
+    m.bindPopup('<b>'+w.n+'</b><br>'+(w.t||'Zwischenpunkt der Wegführung')+'<br>'+
+      '<span class="mono">'+w.lat.toFixed(4)+', '+w.lon.toFixed(4)+'</span>'+
+      (w.via ? '<br><button type="button" data-del="'+w.id+'">löschen</button>' : ''));
+    if(bearbeiten) m.dragging.enable(); else m.dragging.disable();
+  });
+  // Punkte, die es nicht mehr gibt (geloeschte Zwischenpunkte), wieder abraeumen.
+  Object.keys(marker).forEach(id=>{
+    if(!PATH.some(w=>w.id===id)){ map.removeLayer(marker[id]); delete marker[id]; }
+  });
+}
 let target = WP.find(w=>w.id==='santanyi');
 const list = document.getElementById('stoplist');
 ORDER.forEach(id=>{
   const w = WP.find(x=>x.id===id);
   const li = document.createElement('li');
+  li.dataset.wp = w.id;
   li.innerHTML = '<div class="reihe"><button type="button">Ziel</button><span class="nm">'+w.n+
     '<br><span class="co mono">'+w.lat.toFixed(4)+', '+w.lon.toFixed(4)+'</span></span></div>'+
     bildBlock(w);
@@ -396,13 +451,16 @@ function bear(a,b,c,d){const r=Math.PI/180;
   const x=Math.cos(a*r)*Math.sin(c*r)-Math.sin(a*r)*Math.cos(c*r)*Math.cos((d-b)*r);
   return (Math.atan2(y,x)/r+360)%360;}
 
-// Gefahrener Weg: hin an der Kueste entlang, zurueck auf derselben Spur. Die benannten
-// Wegpunkte liegen fest, dazwischen darf der Fahrer Zwischenpunkte setzen, weil nur das
-// Satellitenbild vor Ort zeigt, wo die Linie wirklich frei von Land laeuft.
+// Gefahrener Weg: hin an der Kueste entlang, zurueck auf derselben Spur. Jeder Punkt darf
+// vor Ort verschoben werden, denn nur das Satellitenbild zeigt, wo die Linie wirklich frei
+// von Land laeuft — die eingebauten Koordinaten sind bestenfalls Naeherungen.
 const BASIS = ['figuera','fig_out','santanyi','llombards','moro'];
 let PATH = [], ROUTE = [], CUM = [], routeLine = null, viaZaehler = 0;
 
-function standardPfad(){ return BASIS.map(id=>WP.find(w=>w.id===id)); }
+function wpZuruecksetzen(){
+  WP0.forEach(o=>{ const w = WP.find(x=>x.id===o.id); w.lat = o.lat; w.lon = o.lon; });
+}
+function standardPfad(){ wpZuruecksetzen(); return BASIS.map(id=>WP.find(w=>w.id===id)); }
 function neuerVia(lat,lon){
   viaZaehler++;
   return {id:'via'+viaZaehler, n:'Zwischenpunkt '+viaZaehler, lat:lat, lon:lon, via:true};
@@ -417,22 +475,83 @@ function buildRoute(markerNeu){
   const pts = PATH.map(w=>[w.lat,w.lon]);
   if(routeLine) routeLine.setLatLngs(pts);
   else routeLine = L.polyline(pts,{color:'#D8442A',weight:2,dashArray:'6 6',opacity:.85}).addTo(map);
-  if(markerNeu!==false) zeichneVia();
   const n = PATH.filter(w=>w.via).length;
   document.getElementById('rtPunkte').textContent =
     n===0 ? 'keine Zwischenpunkte' : n===1 ? '1 Zwischenpunkt' : n+' Zwischenpunkte';
   document.getElementById('rtLaenge').textContent = CUM[CUM.length-1].toFixed(2);
+  zeichneMarker();
+  anzeigenNachziehen();
+  if(markerNeu!==false) punkteListe();
   if(me) update();
+}
+
+// Verschobene Wegpunkte muessen ueberall durchschlagen, nicht nur auf der Karte.
+function anzeigenNachziehen(){
+  document.querySelectorAll('#stoplist li[data-wp]').forEach(li=>{
+    const w = WP.find(x=>x.id===li.dataset.wp);
+    const co = li.querySelector('.co');
+    if(w && co) co.textContent = w.lat.toFixed(4)+', '+w.lon.toFixed(4);
+  });
+  // Nach dem Ziehen muessen auch die Zahlenfelder stimmen. Das gerade bearbeitete
+  // Feld bleibt unangetastet, sonst schreibt es einem unter den Fingern herum.
+  document.querySelectorAll('#punkteListe .pz').forEach(z=>{
+    const w = PATH.find(x=>x.id===z.dataset.p);
+    if(!w) return;
+    z.querySelectorAll('input').forEach(inp=>{
+      if(inp !== document.activeElement) inp.value = w[inp.dataset.f].toFixed(4);
+    });
+  });
+}
+
+// Zahleneingabe: eine Koordinate laesst sich eintippen statt bei kleinem Zoom zu treffen.
+function punkteListe(){
+  const box = document.getElementById('punkteListe');
+  box.innerHTML = '';
+  PATH.forEach(w=>{
+    const z = document.createElement('div');
+    z.className = 'pz';
+    z.dataset.p = w.id;
+    z.innerHTML = '<div class="pn">'+w.n+'</div>'+
+      '<input type="number" inputmode="decimal" step="0.0001" min="-90"  max="90"  data-f="lat" value="'+w.lat.toFixed(4)+'">'+
+      '<input type="number" inputmode="decimal" step="0.0001" min="-180" max="180" data-f="lon" value="'+w.lon.toFixed(4)+'">'+
+      (w.via ? '<button type="button" class="weg" title="löschen">×</button>' : '');
+    z.querySelectorAll('input').forEach(inp=>{
+      inp.onchange = ()=>{
+        const v = parseFloat(inp.value), f = inp.dataset.f;
+        const grenze = f==='lat' ? 90 : 180;
+        if(!isFinite(v) || Math.abs(v) > grenze){        // Unsinn verwirft die Route nicht
+          inp.value = w[f].toFixed(4);
+          meldung('Wert unbrauchbar – alter Stand bleibt.');
+          return;
+        }
+        w[f] = v;
+        buildRoute(false);
+        meldung('Koordinate geändert – zum Behalten sichern.');
+      };
+    });
+    const weg = z.querySelector('.weg');
+    if(weg) weg.onclick = ()=>{
+      PATH = PATH.filter(x=>x.id!==w.id);
+      buildRoute(); meldung('Punkt gelöscht – zum Behalten sichern.');
+    };
+    box.appendChild(z);
+  });
 }
 
 // ---- Speichern im Geraet, damit die Korrektur sofort und offline gilt ----
 const SPEICHER = 'bootstour-route';
+// Seit v2 stehen auch bei den benannten Punkten Koordinaten drin, weil sie verschiebbar
+// sind. Ein v1-Stand aus der Vorversion wird weiter gelesen, seine Wegpunkte behalten dann
+// die eingebauten Werte.
 function pfadAlsListe(){
-  return PATH.map(w=>w.via ? {lat:+w.lat.toFixed(5), lon:+w.lon.toFixed(5)} : {id:w.id});
+  return PATH.map(w=>{
+    const k = {lat:+w.lat.toFixed(5), lon:+w.lon.toFixed(5)};
+    return w.via ? k : Object.assign({id:w.id}, k);
+  });
 }
 function routeSichern(){
   try{
-    localStorage.setItem(SPEICHER, JSON.stringify({v:1, path:pfadAlsListe()}));
+    localStorage.setItem(SPEICHER, JSON.stringify({v:2, path:pfadAlsListe()}));
     meldung('Route gesichert.');
   }catch(e){ meldung('Konnte nicht sichern: '+e.message); }
 }
@@ -441,9 +560,17 @@ function routeLaden(){
     const roh = localStorage.getItem(SPEICHER);
     if(!roh) return null;
     const o = JSON.parse(roh);
-    if(!o || o.v!==1 || !Array.isArray(o.path)) return null;
+    if(!o || (o.v!==1 && o.v!==2) || !Array.isArray(o.path)) return null;
+    wpZuruecksetzen();
     const p = o.path.map(e=>{
-      if(e.id) return WP.find(w=>w.id===e.id) || null;
+      if(e.id){
+        const w = WP.find(x=>x.id===e.id);
+        if(!w) return null;
+        if(isFinite(e.lat) && isFinite(e.lon) && Math.abs(e.lat)<=90 && Math.abs(e.lon)<=180){
+          w.lat = e.lat; w.lon = e.lon;
+        }
+        return w;
+      }
       if(typeof e.lat==='number' && typeof e.lon==='number') return neuerVia(e.lat,e.lon);
       return null;
     }).filter(Boolean);
@@ -546,27 +673,6 @@ btnGps.onclick=()=>{
 };
 btnMark.onclick=()=>{track=[];if(trackLine)trackLine.setLatLngs([]);};
 
-// ---- Bearbeitungsmodus ----
-let bearbeiten = false, viaMarker = [];
-const viaIcon = L.divIcon({className:'via-icon', html:'', iconSize:[22,22], iconAnchor:[11,11]});
-
-function zeichneVia(){
-  viaMarker.forEach(m=>map.removeLayer(m));
-  viaMarker = [];
-  if(!bearbeiten) return;
-  PATH.forEach(w=>{
-    if(!w.via) return;
-    const m = L.marker([w.lat,w.lon],{icon:viaIcon, draggable:true}).addTo(map);
-    m.on('drag', e=>{
-      const ll = e.target.getLatLng(); w.lat = ll.lat; w.lon = ll.lng;
-      routeLine.setLatLngs(PATH.map(x=>[x.lat,x.lon]));
-    });
-    m.on('dragend', ()=>{ buildRoute(false); meldung('Verschoben – zum Behalten sichern.'); });
-    m.bindPopup('<b>'+w.n+'</b><br><button type="button" data-del="'+w.id+'">löschen</button>');
-    viaMarker.push(m);
-  });
-}
-
 // Der neue Punkt kommt in die Etappe, deren Lot am naechsten liegt — nicht ans Ende.
 function viaEinfuegen(latlng){
   const P = flat(latlng.lat, latlng.lng);
@@ -598,7 +704,7 @@ btnEdit.onclick=()=>{
   press(btnEdit, bearbeiten);
   document.getElementById('editpanel').style.display = bearbeiten ? '' : 'none';
   meldung('');
-  zeichneVia();
+  zeichneMarker();
 };
 btnSichern.onclick = routeSichern;
 btnReset.onclick = ()=>{
