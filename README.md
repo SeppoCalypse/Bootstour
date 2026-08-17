@@ -78,8 +78,25 @@ Llombards liegen 111 m bzw. 53 m seewärts dieser Linie, obwohl beide Punkte der
 bereits vorgelagert sind.
 
 Die Zwischenpunkte sind keine berechneten Küstenabstände, sondern die vorhandenen
-Anlaufpunkte in gefahrener Reihenfolge. Ob jede einzelne Etappe an den Felsnasen frei
-läuft, zeigt nur der Satellitenlayer — einmal durchzoomen, bevor es losgeht.
+Anlaufpunkte in gefahrener Reihenfolge. An der Steilküste zwischen Cala Figuera und Cala
+Santanyí kürzen die Etappen daher weiterhin Land ab.
+
+Küstendaten in brauchbarer Genauigkeit sind nicht frei verfügbar: GSHHS in Vollauflösung
+liegt in diesem Ausschnitt über 200 m daneben und verortet den Wartepunkt vor Cala Figuera
+im Land. Deshalb liegt die Korrektur in der Seite selbst.
+
+### Route korrigieren
+
+Unter **Fahren** auf **Route bearbeiten**:
+
+- Tipp auf die Karte setzt einen Zwischenpunkt in die nächstgelegene Etappe
+- Punkte ziehen, Tipp auf einen Punkt bietet „löschen"
+- **Sichern** legt die Route im Browser ab — sie gilt dann sofort und auch ohne Empfang
+- **Koordinaten** gibt die Liste zum Weitergeben aus, **Zurücksetzen** stellt die
+  eingebaute Route wieder her
+
+Die fünf benannten Wegpunkte bleiben fest, verschieben lassen sich nur die Zwischenpunkte.
+Maßgeblich ist der Satellitenlayer: einmal durchzoomen, bevor es losgeht.
 
 ## Was die Seite zur Laufzeit nachlädt
 

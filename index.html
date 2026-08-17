@@ -88,8 +88,9 @@
   h2{margin:0 0 10px;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-2);font-weight:700}
 
   .stops{list-style:none;margin:0;padding:0}
-  .stops li{display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--line-2)}
+  .stops li{border-bottom:1px solid var(--line-2)}
   .stops li:last-child{border-bottom:0}
+  .stops .reihe{display:flex;align-items:center;gap:12px}
   .stops button{flex:0 0 84px;min-height:var(--tap);border:1.5px solid var(--ink);background:var(--paper);
     color:var(--ink);font-family:inherit;font-size:12px;font-weight:700;letter-spacing:.06em;
     text-transform:uppercase;cursor:pointer;margin:6px 0}
@@ -97,10 +98,31 @@
   .stops .nm{flex:1;font-size:15px;padding:8px 0}
   .stops .co{font-size:12px;color:var(--ink-2)}
 
+  /* ---- Bild je Ziel: zugeklappt wird nichts geladen ---- */
+  .bild{margin:0 0 6px}
+  .bild summary{display:flex;align-items:center;min-height:var(--tap);font-size:12.5px;
+    font-weight:600;color:var(--sea);cursor:pointer}
+  .bild figure{margin:0 0 10px}
+  .bild img{display:block;width:100%;height:auto;border:1px solid var(--line)}
+  .bild figcaption{font-size:11.5px;color:var(--ink-2);margin-top:5px}
+  .bild figure.kaputt img{display:none}
+  .bild figure.kaputt figcaption::before{color:var(--signal);
+    content:'Bild nicht geladen – ohne Empfang oder Quelle verschoben. '}
+
   .knopfreihe{display:flex;gap:10px;margin-top:12px}
   .knopfreihe button{flex:1;min-height:var(--tap);background:var(--paper);border:1.5px solid var(--sea);
     color:var(--sea);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer}
   .knopfreihe button.primaer{background:var(--sea);color:var(--paper)}
+  .knopfreihe button[aria-pressed="true"]{background:var(--sea);color:var(--paper)}
+
+  /* ---- Route bearbeiten ---- */
+  #editpanel{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+  #editpanel .hinweis{font-size:12.5px;color:var(--ink-2)}
+  #editpanel .stat{font-size:14px;font-weight:700;margin-top:8px}
+  #editpanel .meldung{font-size:12.5px;color:var(--go);margin-top:6px;min-height:1.2em}
+  #editpanel textarea{width:100%;height:88px;margin-top:10px;padding:8px;border:1px solid var(--line);
+    background:var(--paper-2);color:var(--ink);font-family:ui-monospace,Menlo,monospace;font-size:11.5px}
+  .via-icon{background:var(--sea);border:3px solid #fff;border-radius:50%;box-shadow:0 0 0 1px var(--ink)}
 
   .gate{border-left:4px solid var(--signal);padding:10px 0 10px 12px;margin-bottom:12px}
   .gate b{display:block;font-size:14px;margin-bottom:3px}
@@ -204,6 +226,23 @@
       <button id="btnGps" class="primaer">Standort freigeben</button>
       <button id="btnMark">Track löschen</button>
     </div>
+    <div class="knopfreihe">
+      <button id="btnEdit" aria-pressed="false">Route bearbeiten</button>
+    </div>
+
+    <div id="editpanel" style="display:none">
+      <div class="hinweis">Ein Tipp auf die Karte setzt einen Zwischenpunkt in die nächstgelegene
+        Etappe. Punkte lassen sich ziehen, ein Tipp auf einen Punkt bietet „löschen“ an.
+        Sichern legt die Route im Browser ab – sie gilt dann auch ohne Empfang.</div>
+      <div class="stat"><span id="rtPunkte">keine Zwischenpunkte</span> · <span id="rtLaenge">–</span> sm gesamt</div>
+      <div class="meldung" id="rtMeldung"></div>
+      <div class="knopfreihe">
+        <button id="btnSichern" class="primaer">Sichern</button>
+        <button id="btnReset">Zurücksetzen</button>
+        <button id="btnCoords">Koordinaten</button>
+      </div>
+      <textarea id="coords" readonly style="display:none"></textarea>
+    </div>
   </section>
 
 </div><!-- /fahren -->
@@ -266,7 +305,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
-const VERSION = '1.0';
+const VERSION = '1.1';
 document.getElementById('ver').textContent  = VERSION;
 document.getElementById('ver2').textContent = VERSION;
 
@@ -278,6 +317,28 @@ const WP = [
   {id:'moro',    n:'Caló des Moro',             lat:39.3120, lon:3.1200, t:'korrigiert, ca. 250 m vorgelagert'}
 ];
 const ORDER = ['santanyi','llombards','moro','figuera'];
+
+// Bilder von Wikimedia Commons, per Special:FilePath eingebunden. Die Dateinamen sind
+// recherchiert, aber nicht gegengeprueft — laedt eines nicht, uebernimmt der Link darunter.
+const BILD = {
+  santanyi : {datei:'Mallorca Bucht von Cala Santanyi.jpg', kat:'Cala_Santany%C3%AD'},
+  llombards: {datei:'Cala Llombards 04.jpg',                kat:'Cala_Llombards'},
+  moro     : {datei:'Cala del Moro (Santanyi).jpg',         kat:'Cala_del_Moro'},
+  figuera  : {datei:'Mallorca Hafen von Cala Figuera.jpg',  kat:'Cala_Figuera'}
+};
+function bildFehlt(img){ img.closest('figure').classList.add('kaputt'); }
+function bildBlock(w){
+  const b = BILD[w.id];
+  if(!b) return '';
+  const d = encodeURIComponent(b.datei);
+  return '<details class="bild"><summary>Bild ansehen</summary><figure>'+
+    '<img loading="lazy" alt="'+w.n+'" onerror="bildFehlt(this)" '+
+      'src="https://commons.wikimedia.org/wiki/Special:FilePath/'+d+'?width=640">'+
+    '<figcaption>Foto: Wikimedia Commons · '+
+      '<a href="https://commons.wikimedia.org/wiki/File:'+d+'" target="_blank" rel="noopener">Autor und Lizenz</a> · '+
+      '<a href="https://commons.wikimedia.org/wiki/Category:'+b.kat+'" target="_blank" rel="noopener">mehr Bilder</a>'+
+    '</figcaption></figure></details>';
+}
 
 const map = L.map('map',{zoomControl:true}).setView([39.3270,3.1480],13);
 const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
@@ -313,19 +374,14 @@ WP.forEach(w=>{
   L.circleMarker([w.lat,w.lon],{radius:7,color:'#0B1A24',weight:2,fillColor:'#D8442A',fillOpacity:1})
    .addTo(map).bindPopup('<b>'+w.n+'</b><br>'+w.t+'<br>'+w.lat.toFixed(4)+', '+w.lon.toFixed(4));
 });
-// Gefahrener Weg: hin an der Kueste entlang, zurueck auf derselben Spur.
-// Die frueher gezeichnete Abkuerzung Caló des Moro -> Hafen lief quer ueber die Landzunge.
-const LEG_PATH = ['figuera','fig_out','santanyi','llombards','moro'];
-L.polyline(LEG_PATH.map(id=>{const w=WP.find(x=>x.id===id);return [w.lat,w.lon];}),
-  {color:'#D8442A',weight:2,dashArray:'6 6',opacity:.85}).addTo(map);
-
 let target = WP.find(w=>w.id==='santanyi');
 const list = document.getElementById('stoplist');
 ORDER.forEach(id=>{
   const w = WP.find(x=>x.id===id);
   const li = document.createElement('li');
-  li.innerHTML = '<button>Ziel</button><span class="nm">'+w.n+
-    '<br><span class="co mono">'+w.lat.toFixed(4)+', '+w.lon.toFixed(4)+'</span></span>';
+  li.innerHTML = '<div class="reihe"><button type="button">Ziel</button><span class="nm">'+w.n+
+    '<br><span class="co mono">'+w.lat.toFixed(4)+', '+w.lon.toFixed(4)+'</span></span></div>'+
+    bildBlock(w);
   li.querySelector('button').onclick=()=>{target=w;document.getElementById('target').textContent=w.n;
     [...list.children].forEach(c=>c.dataset.active='0'); li.dataset.active='1'; update();};
   if(id==='santanyi') li.dataset.active='1';
@@ -340,11 +396,62 @@ function bear(a,b,c,d){const r=Math.PI/180;
   const x=Math.cos(a*r)*Math.sin(c*r)-Math.sin(a*r)*Math.cos(c*r)*Math.cos((d-b)*r);
   return (Math.atan2(y,x)/r+360)%360;}
 
-// Route inkl. Rueckweg: derselbe Weg zurueck, also jeder Punkt ausser Caló des Moro zweimal.
-const ROUTE = LEG_PATH.concat(LEG_PATH.slice(0,-1).reverse()).map(id=>WP.find(w=>w.id===id));
-const CUM = [0];
-for(let i=1;i<ROUTE.length;i++)
-  CUM[i] = CUM[i-1] + hav(ROUTE[i-1].lat,ROUTE[i-1].lon,ROUTE[i].lat,ROUTE[i].lon);
+// Gefahrener Weg: hin an der Kueste entlang, zurueck auf derselben Spur. Die benannten
+// Wegpunkte liegen fest, dazwischen darf der Fahrer Zwischenpunkte setzen, weil nur das
+// Satellitenbild vor Ort zeigt, wo die Linie wirklich frei von Land laeuft.
+const BASIS = ['figuera','fig_out','santanyi','llombards','moro'];
+let PATH = [], ROUTE = [], CUM = [], routeLine = null, viaZaehler = 0;
+
+function standardPfad(){ return BASIS.map(id=>WP.find(w=>w.id===id)); }
+function neuerVia(lat,lon){
+  viaZaehler++;
+  return {id:'via'+viaZaehler, n:'Zwischenpunkt '+viaZaehler, lat:lat, lon:lon, via:true};
+}
+
+function buildRoute(markerNeu){
+  // Rueckweg spiegelt den Hinweg, jeder Punkt ausser dem letzten kommt zweimal vor.
+  ROUTE = PATH.concat(PATH.slice(0,-1).reverse());
+  CUM = [0];
+  for(let i=1;i<ROUTE.length;i++)
+    CUM[i] = CUM[i-1] + hav(ROUTE[i-1].lat,ROUTE[i-1].lon,ROUTE[i].lat,ROUTE[i].lon);
+  const pts = PATH.map(w=>[w.lat,w.lon]);
+  if(routeLine) routeLine.setLatLngs(pts);
+  else routeLine = L.polyline(pts,{color:'#D8442A',weight:2,dashArray:'6 6',opacity:.85}).addTo(map);
+  if(markerNeu!==false) zeichneVia();
+  const n = PATH.filter(w=>w.via).length;
+  document.getElementById('rtPunkte').textContent =
+    n===0 ? 'keine Zwischenpunkte' : n===1 ? '1 Zwischenpunkt' : n+' Zwischenpunkte';
+  document.getElementById('rtLaenge').textContent = CUM[CUM.length-1].toFixed(2);
+  if(me) update();
+}
+
+// ---- Speichern im Geraet, damit die Korrektur sofort und offline gilt ----
+const SPEICHER = 'bootstour-route';
+function pfadAlsListe(){
+  return PATH.map(w=>w.via ? {lat:+w.lat.toFixed(5), lon:+w.lon.toFixed(5)} : {id:w.id});
+}
+function routeSichern(){
+  try{
+    localStorage.setItem(SPEICHER, JSON.stringify({v:1, path:pfadAlsListe()}));
+    meldung('Route gesichert.');
+  }catch(e){ meldung('Konnte nicht sichern: '+e.message); }
+}
+function routeLaden(){
+  try{
+    const roh = localStorage.getItem(SPEICHER);
+    if(!roh) return null;
+    const o = JSON.parse(roh);
+    if(!o || o.v!==1 || !Array.isArray(o.path)) return null;
+    const p = o.path.map(e=>{
+      if(e.id) return WP.find(w=>w.id===e.id) || null;
+      if(typeof e.lat==='number' && typeof e.lon==='number') return neuerVia(e.lat,e.lon);
+      return null;
+    }).filter(Boolean);
+    // Nur uebernehmen, wenn das Grundgeruest vollstaendig und in Reihenfolge steckt.
+    return p.filter(w=>!w.via).map(w=>w.id).join(',') === BASIS.join(',') ? p : null;
+  }catch(e){ return null; }
+}
+function meldung(t){ document.getElementById('rtMeldung').textContent = t; }
 
 // Grobe Ebene in Seemeilen, auf diesen paar Kilometern genau genug fuer die Projektion.
 function flat(lat,lon){return [lon*60*Math.cos(39.33*Math.PI/180), lat*60];}
@@ -438,6 +545,75 @@ btnGps.onclick=()=>{
   navigator.geolocation.watchPosition(onPos,onErr,{enableHighAccuracy:true,maximumAge:2000,timeout:20000});
 };
 btnMark.onclick=()=>{track=[];if(trackLine)trackLine.setLatLngs([]);};
+
+// ---- Bearbeitungsmodus ----
+let bearbeiten = false, viaMarker = [];
+const viaIcon = L.divIcon({className:'via-icon', html:'', iconSize:[22,22], iconAnchor:[11,11]});
+
+function zeichneVia(){
+  viaMarker.forEach(m=>map.removeLayer(m));
+  viaMarker = [];
+  if(!bearbeiten) return;
+  PATH.forEach(w=>{
+    if(!w.via) return;
+    const m = L.marker([w.lat,w.lon],{icon:viaIcon, draggable:true}).addTo(map);
+    m.on('drag', e=>{
+      const ll = e.target.getLatLng(); w.lat = ll.lat; w.lon = ll.lng;
+      routeLine.setLatLngs(PATH.map(x=>[x.lat,x.lon]));
+    });
+    m.on('dragend', ()=>{ buildRoute(false); meldung('Verschoben – zum Behalten sichern.'); });
+    m.bindPopup('<b>'+w.n+'</b><br><button type="button" data-del="'+w.id+'">löschen</button>');
+    viaMarker.push(m);
+  });
+}
+
+// Der neue Punkt kommt in die Etappe, deren Lot am naechsten liegt — nicht ans Ende.
+function viaEinfuegen(latlng){
+  const P = flat(latlng.lat, latlng.lng);
+  let beste = 0, dmin = Infinity;
+  for(let i=0;i<PATH.length-1;i++){
+    const A=flat(PATH[i].lat,PATH[i].lon), B=flat(PATH[i+1].lat,PATH[i+1].lon);
+    const vx=B[0]-A[0], vy=B[1]-A[1], L2=vx*vx+vy*vy;
+    const t = L2>0 ? Math.max(0,Math.min(1,((P[0]-A[0])*vx+(P[1]-A[1])*vy)/L2)) : 0;
+    const d = Math.hypot(P[0]-(A[0]+t*vx), P[1]-(A[1]+t*vy));
+    if(d < dmin){ dmin = d; beste = i; }
+  }
+  PATH.splice(beste+1, 0, neuerVia(latlng.lat, latlng.lng));
+  buildRoute();
+  meldung('Punkt gesetzt – zum Behalten sichern.');
+}
+
+map.on('click', e=>{ if(bearbeiten) viaEinfuegen(e.latlng); });
+map.on('popupopen', e=>{
+  const b = e.popup.getElement() && e.popup.getElement().querySelector('[data-del]');
+  if(!b) return;
+  b.onclick = ()=>{
+    PATH = PATH.filter(w=>w.id !== b.dataset.del);
+    map.closePopup(); buildRoute(); meldung('Punkt gelöscht – zum Behalten sichern.');
+  };
+});
+
+btnEdit.onclick=()=>{
+  bearbeiten = !bearbeiten;
+  press(btnEdit, bearbeiten);
+  document.getElementById('editpanel').style.display = bearbeiten ? '' : 'none';
+  meldung('');
+  zeichneVia();
+};
+btnSichern.onclick = routeSichern;
+btnReset.onclick = ()=>{
+  PATH = standardPfad(); viaZaehler = 0;
+  try{ localStorage.removeItem(SPEICHER); }catch(e){}
+  buildRoute(); meldung('Auf die eingebaute Route zurückgesetzt.');
+};
+btnCoords.onclick = ()=>{
+  const t = document.getElementById('coords');
+  t.value = JSON.stringify(pfadAlsListe());
+  t.style.display = ''; t.select();
+};
+
+PATH = routeLaden() || standardPfad();
+buildRoute();
 
 function tick(){
   const now=new Date();
