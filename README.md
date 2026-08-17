@@ -90,13 +90,17 @@ im Land. Deshalb liegt die Korrektur in der Seite selbst.
 Unter **Fahren** auf **Route bearbeiten**:
 
 - Tipp auf die Karte setzt einen Zwischenpunkt in die nächstgelegene Etappe
-- Punkte ziehen, Tipp auf einen Punkt bietet „löschen"
+- Alle Punkte ziehen — auch Start, Ziel und die Anlaufpunkte. Tipp auf einen Zwischenpunkt
+  bietet „löschen"
+- Darunter alle Punkte mit Breite und Länge in Dezimalgrad zum genauen Eintippen
 - **Sichern** legt die Route im Browser ab — sie gilt dann sofort und auch ohne Empfang
 - **Koordinaten** gibt die Liste zum Weitergeben aus, **Zurücksetzen** stellt die
-  eingebaute Route wieder her
+  eingebauten Koordinaten wieder her
 
-Die fünf benannten Wegpunkte bleiben fest, verschieben lassen sich nur die Zwischenpunkte.
 Maßgeblich ist der Satellitenlayer: einmal durchzoomen, bevor es losgeht.
+
+Auf der Karte sind drei Stufen unterschieden — Start und Ziel als dunkles Quadrat, die drei
+Badebuchten als rote Kreise, Ansteuerung und Zwischenpunkte als helle Ringe.
 
 ## Was die Seite zur Laufzeit nachlädt
 

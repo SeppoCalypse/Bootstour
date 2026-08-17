@@ -7,6 +7,24 @@ Die angezeigte Version steht oben rechts auf der Seite und im Fuß unter „Plan
 Steht dort eine ältere Nummer als hier, zeigt der Browser eine zwischengespeicherte
 Fassung — Seite neu laden.
 
+## [1.2] – 2026-08-17
+
+### Hinzugefügt
+- **Alle Punkte sind verschiebbar**, nicht mehr nur die Zwischenpunkte. Start, Ziel und die
+  Anlaufpunkte lassen sich ziehen und werden mitgespeichert. Grund: Der Start- und Zielpunkt
+  in Cala Figuera stammt aus der ursprünglichen Datei und sitzt an der falschen Stelle.
+- **Zahleneingabe** im Bearbeitungsmodus: Liste aller Punkte mit Breite und Länge in
+  Dezimalgrad, Schrittweite 0,0001 (etwa 11 m). Unbrauchbare Eingaben werden verworfen,
+  der alte Wert bleibt stehen.
+- **Drei Symbolstufen auf der Karte**: Start und Ziel als dunkles Quadrat mit Beschriftung,
+  die drei Badebuchten als rote Kreise, Ansteuerung und Zwischenpunkte als helle Ringe.
+
+### Geändert
+- Wegpunkt-Marker sind `L.marker` statt `L.circleMarker`, weil nur Marker ziehen können.
+- Verschobene Punkte schlagen auf Zielliste, Kartenpopup und Zahlenfelder durch.
+- Speicherformat `v2` mit Koordinaten auch bei den benannten Punkten. Ein `v1`-Stand aus
+  Version 1.1 wird weiter gelesen, seine Wegpunkte behalten die eingebauten Werte.
+
 ## [1.1] – 2026-08-17
 
 ### Hinzugefügt
