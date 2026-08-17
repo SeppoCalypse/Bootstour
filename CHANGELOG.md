@@ -7,6 +7,30 @@ Die angezeigte Version steht oben rechts auf der Seite und im Fuß unter „Plan
 Steht dort eine ältere Nummer als hier, zeigt der Browser eine zwischengespeicherte
 Fassung — Seite neu laden.
 
+## [1.3] – 2026-08-17
+
+### Hinzugefügt
+- **Karte im Vollbild.** Knopf direkt unter der Karte, zurück über den Knopf unten links,
+  über Escape oder über das Beenden des Browser-Vollbilds. Die Karte wächst dabei von
+  46 % der Höhe auf das ganze Fenster.
+- Der Bildschirm bleibt im Vollbild wach (Wake Lock) und wird beim Verlassen sofort wieder
+  freigegeben. Nach einem Wechsel in eine andere App wird die Sperre neu angefordert.
+
+### Umsetzung
+- Das Vollbild läuft über eine Klasse am `<body>`, nicht über die Fullscreen-API. Die fehlte
+  auf dem iPhone für gewöhnliche Elemente jahrelang, kam erst mit iOS 17.4 und steckte
+  zunächst hinter einem Schalter in den Safari-Einstellungen. Vom Home-Bildschirm aus hätte
+  sie ohnehin nichts mehr zu verbergen. Zusätzlich wird sie gerufen, wo der Browser sie
+  kennt — dann verschwinden am Rechner und auf Android auch Adressleiste und Tabs.
+- Sichtbar bleibt allein die Karte samt ihrer eigenen Schalter für Satellit, Karte,
+  Seezeichen und Folgen. Der Umkehr-Countdown ist im Vollbild nicht zu sehen; der
+  Zurück-Knopf ist deshalb dauerhaft eingeblendet.
+- Kerbe und Home-Indikator werden über `env(safe-area-inset-*)` freigehalten.
+
+### Behoben
+- `setModus()` setzte `body.className` und hätte damit den Vollbild-Zustand weggewischt;
+  die Funktion arbeitet jetzt mit `classList`.
+
 ## [1.2] – 2026-08-17
 
 ### Hinzugefügt

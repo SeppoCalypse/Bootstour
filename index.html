@@ -53,6 +53,32 @@
   /* ---- Karte mit aufgesetzten Schaltern, spart die Leiste darunter ---- */
   .kartenfeld{position:relative;z-index:0}
   #map{height:46vh;min-height:280px;width:100%;background:var(--paper-2)}
+
+  /* ---- Vollbild: seitenintern, damit es auch dort traegt, wo die Fullscreen-API fehlt ---- */
+  .vollknopf{display:block;width:100%;min-height:var(--tap);background:var(--paper);
+    border:0;border-bottom:1px solid var(--line);font-family:inherit;font-size:13px;
+    font-weight:700;letter-spacing:.06em;color:var(--sea);cursor:pointer}
+  body.karte-voll{overflow:hidden}
+  /* Sticht die Modusregel aus: sonst nimmt ein Wechsel auf Plan im Vollbild die Karte
+     samt Zurück-Knopf mit und man säße vor einer leeren Fläche. */
+  body.karte-voll .fahren{display:block}
+  body.karte-voll .kartenfeld{position:fixed;inset:0;z-index:2000}
+  body.karte-voll #map{height:100%;min-height:0}
+  body.karte-voll header, body.karte-voll .modus, body.karte-voll .band,
+  body.karte-voll .ziel, body.karte-voll .instr, body.karte-voll section,
+  body.karte-voll .vollknopf{display:none}
+  .zurueckknopf{display:none}
+  /* Unten links: mit dem Daumen erreichbar und nicht im Weg der Zoomtasten. */
+  body.karte-voll .zurueckknopf{display:flex;align-items:center;position:absolute;z-index:950;
+    left:calc(10px + env(safe-area-inset-left));
+    bottom:calc(10px + env(safe-area-inset-bottom));
+    min-height:var(--tap);padding:0 16px;background:var(--ink);color:var(--paper);
+    border:0;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer}
+  /* Kerbe und Home-Indikator freihalten */
+  body.karte-voll .chips{top:calc(8px + env(safe-area-inset-top));
+    right:calc(8px + env(safe-area-inset-right))}
+  body.karte-voll .leaflet-top{padding-top:env(safe-area-inset-top)}
+  body.karte-voll .leaflet-left{padding-left:env(safe-area-inset-left)}
   .leaflet-container{font-family:inherit}
   .chips{position:absolute;top:8px;right:8px;z-index:900;display:grid;
     grid-template-columns:repeat(2,1fr);gap:5px;width:150px}
@@ -198,7 +224,9 @@
       <button id="btnSea" aria-pressed="true">Seezeichen</button>
       <button id="btnFollow" aria-pressed="true">Folgen</button>
     </div>
+    <button type="button" id="btnZurueck" class="zurueckknopf">← Zurück</button>
   </div>
+  <button type="button" id="btnVoll" class="vollknopf">Karte im Vollbild</button>
 
   <div class="ziel">
     <div class="u">Ziel</div>
@@ -325,7 +353,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
-const VERSION = '1.2';
+const VERSION = '1.3';
 document.getElementById('ver').textContent  = VERSION;
 document.getElementById('ver2').textContent = VERSION;
 
@@ -370,7 +398,9 @@ const sea = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png',
 
 // ---- Moduswahl. Die Karte muss nach dem Einblenden neu vermessen werden. ----
 function setModus(m){
-  document.body.className = 'm-'+m;
+  // classList statt className: sonst wischt ein Moduswechsel das Vollbild weg.
+  document.body.classList.remove('m-fahren','m-plan');
+  document.body.classList.add('m-'+m);
   mFahren.setAttribute('aria-pressed', String(m==='fahren'));
   mPlan.setAttribute('aria-pressed', String(m==='plan'));
   try{ localStorage.setItem('bootstour-modus', m); }catch(e){}
@@ -382,12 +412,66 @@ let startModus='fahren';
 try{ if(localStorage.getItem('bootstour-modus')==='plan') startModus='plan'; }catch(e){}
 setModus(startModus);
 
+// ---- Vollbild ----
+// Führend ist die Klasse am Body. Die Fullscreen-API wird nur zusätzlich gerufen, weil sie
+// auf dem iPhone lange fehlte und vom Home-Bildschirm aus ohnehin nichts mehr zu verbergen
+// hat. Schlägt sie fehl, bleibt das seiteninterne Vollbild davon unberührt.
+let vollbild = false, wachSperre = null;
+
+function nativVollbild(an){
+  try{
+    if(an){
+      const el = document.documentElement;
+      const f = el.requestFullscreen || el.webkitRequestFullscreen;
+      if(f){ const r = f.call(el); if(r && r.catch) r.catch(()=>{}); }
+    } else if(document.fullscreenElement || document.webkitFullscreenElement){
+      const f = document.exitFullscreen || document.webkitExitFullscreen;
+      if(f){ const r = f.call(document); if(r && r.catch) r.catch(()=>{}); }
+    }
+  }catch(e){}
+}
+
+async function wachHalten(an){
+  try{
+    if(an){
+      if(!('wakeLock' in navigator) || wachSperre) return;
+      wachSperre = await navigator.wakeLock.request('screen');
+      wachSperre.addEventListener('release', ()=>{ wachSperre = null; });
+    } else if(wachSperre){
+      const s = wachSperre; wachSperre = null; await s.release();
+    }
+  }catch(e){ wachSperre = null; }   // etwa bei niedrigem Akku abgelehnt
+}
+
+function setVollbild(an){
+  if(vollbild === an) return;
+  vollbild = an;
+  document.body.classList.toggle('karte-voll', an);
+  nativVollbild(an);
+  wachHalten(an);
+  setTimeout(()=>map.invalidateSize(), 60);
+}
+
+// Das System gibt die Wachsperre beim Appwechsel frei — beim Zurückkommen neu anfordern.
+document.addEventListener('visibilitychange', ()=>{
+  if(!document.hidden && vollbild) wachHalten(true);
+});
+// Steigt der Browser von sich aus aus (Escape, Zurück-Taste), zieht die Seite nach.
+['fullscreenchange','webkitfullscreenchange'].forEach(ev=>
+  document.addEventListener(ev, ()=>{
+    if(vollbild && !(document.fullscreenElement || document.webkitFullscreenElement))
+      setVollbild(false);
+  }));
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && vollbild) setVollbild(false); });
+
 let follow = true;
 function press(el,on){el.setAttribute('aria-pressed',on?'true':'false');}
 btnSat.onclick=()=>{map.addLayer(sat);map.removeLayer(osm);press(btnSat,1);press(btnOsm,0);};
 btnOsm.onclick=()=>{map.addLayer(osm);map.removeLayer(sat);press(btnOsm,1);press(btnSat,0);};
 btnSea.onclick=()=>{const on=map.hasLayer(sea);on?map.removeLayer(sea):map.addLayer(sea);press(btnSea,!on);};
 btnFollow.onclick=()=>{follow=!follow;press(btnFollow,follow);};
+btnVoll.onclick=()=>setVollbild(true);
+btnZurueck.onclick=()=>setVollbild(false);
 map.on('dragstart',()=>{follow=false;press(btnFollow,false);});
 
 // Ausgangskoordinaten einfrieren, damit Zuruecksetzen auch verschobene Wegpunkte heilt.
