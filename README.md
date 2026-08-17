@@ -62,6 +62,15 @@ Zwei Modi, oben umschaltbar:
 
 Der Countdown bleibt in beiden Modi oben stehen.
 
+### Karte im Vollbild
+
+Der Knopf direkt unter der Karte blendet alles Übrige aus, die Karte füllt den Schirm.
+Zurück geht es über den Knopf unten links oder mit Escape. Die Layer-Schalter bleiben
+stehen, der Umkehr-Countdown ist im Vollbild nicht sichtbar.
+
+Solange das Vollbild an ist, bleibt der Bildschirm wach — ohne das schaltet das Handy nach
+etwa einer halben Minute ab. Beim Verlassen wird die Sperre sofort wieder freigegeben.
+
 ## Die Route
 
 Gefahren wird an der Küste entlang und auf derselben Spur zurück:
