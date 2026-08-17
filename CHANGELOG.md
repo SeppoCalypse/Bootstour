@@ -7,6 +7,26 @@ Die angezeigte Version steht oben rechts auf der Seite und im Fuß unter „Plan
 Steht dort eine ältere Nummer als hier, zeigt der Browser eine zwischengespeicherte
 Fassung — Seite neu laden.
 
+## [1.1] – 2026-08-17
+
+### Hinzugefügt
+- **Route bearbeiten.** Ein Tipp auf die Karte setzt einen Zwischenpunkt in die
+  nächstgelegene Etappe, Punkte lassen sich ziehen und löschen. Gesichert wird im Browser,
+  die korrigierte Route gilt damit sofort und auch ohne Empfang. „Koordinaten" gibt die
+  Liste zum Weitergeben aus, „Zurücksetzen" stellt die eingebaute Route wieder her.
+  Die fünf benannten Wegpunkte bleiben dabei fest.
+- **Bild je Ziel** in der Zielliste, zugeklappt. Fotos von Wikimedia Commons mit
+  Quellenangabe und Link auf Autor und Lizenz. Zugeklappt wird nichts geladen.
+
+### Bekannte Einschränkung
+- Die eingebauten Etappen kürzen an der Steilküste zwischen Cala Figuera und Cala Santanyí
+  weiterhin Land ab. Küstendaten in brauchbarer Genauigkeit sind nicht frei verfügbar —
+  GSHHS in Vollauflösung liegt hier über 200 m daneben und verortet den Wartepunkt
+  `fig_out` im Land. Deshalb der Bearbeitungsmodus: Das Satellitenbild vor Ort ist die
+  einzige verlässliche Quelle.
+- Die Bilddateinamen sind recherchiert, aber nicht gegengeprüft. Lädt ein Bild nicht,
+  erscheint an seiner Stelle der Link zur Quelle.
+
 ## [1.0] – 2026-08-16
 
 Erster versionierter Stand. Die Seite bekommt eine eigene Gestalt, getrennt von der
