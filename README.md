@@ -94,6 +94,28 @@ Küstendaten in brauchbarer Genauigkeit sind nicht frei verfügbar: GSHHS in Vol
 liegt in diesem Ausschnitt über 200 m daneben und verortet den Wartepunkt vor Cala Figuera
 im Land. Deshalb liegt die Korrektur in der Seite selbst.
 
+### Die gemeinsame Route
+
+Maßgeblich ist **`route.json`** im Repo. Die Seite holt sie bei jedem Laden, jedes Gerät
+sieht damit dieselbe Route. Die Koordinaten in `index.html` sind nur der Notnagel für den
+allerersten Aufruf ohne Empfang.
+
+**Wichtig:** „Sichern" im Bearbeitungsmodus legt die Route nur im eigenen Browser ab. Das
+andere Telefon sieht davon nichts — und in normalem Safari löscht Apple diese Ablage nach
+sieben Tagen ohne Interaktion mit der Seite. Für beide und auf Dauer führt der Weg über
+`route.json`.
+
+Eine Korrektur dauerhaft für alle übernehmen, geht auch vom Handy:
+
+1. Bearbeitungsmodus → **Für route.json** → der Inhalt steht im Textfeld, alles markieren
+   und kopieren
+2. Auf github.com im Repo `route.json` öffnen, Stift-Symbol, alles ersetzen, **Commit**
+3. Auf dem anderen Gerät **Route laden** — fertig
+
+Unterwegs ohne Repo geht es schneller über **Route teilen**: Der Knopf erzeugt einen Link,
+in dem die Route steckt. Das andere Telefon öffnet ihn und wird gefragt, ob es übernehmen
+soll. Das gilt dann aber wieder nur auf diesem Gerät.
+
 ### Route korrigieren
 
 Unter **Fahren** auf **Route bearbeiten**:

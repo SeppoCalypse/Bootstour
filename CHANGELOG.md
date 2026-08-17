@@ -7,6 +7,35 @@ Die angezeigte Version steht oben rechts auf der Seite und im Fuß unter „Plan
 Steht dort eine ältere Nummer als hier, zeigt der Browser eine zwischengespeicherte
 Fassung — Seite neu laden.
 
+## [1.4] – 2026-08-17
+
+Zwei Geräte hatten zwei Routen und jedes sah nur seine eigene. `localStorage` gehört dem
+einzelnen Browser auf dem einzelnen Gerät — es gab bisher keine Stelle für eine gemeinsame
+Fassung. In normalem Safari löscht ITP diese Ablage zudem nach sieben Tagen ohne
+Interaktion; vom Home-Bildschirm gestartete Apps haben einen eigenen Zähler.
+
+### Hinzugefügt
+- **`route.json`** als gemeinsame Route. Die Seite holt sie beim Laden — jedes Gerät sieht
+  damit dieselbe. Geändert wird die Datei im Repo, das geht auf github.com auch vom Handy.
+- **Route laden** — Knopf, der die gemeinsame Fassung neu holt, ohne die Seite neu zu
+  starten. So kommt man an die Änderung des anderen Geräts.
+- **Route teilen** — erzeugt einen Link, in dem die Route steckt. Wo das Gerät es kennt,
+  öffnet sich das Teilen-Blatt, sonst steht der Link zum Kopieren im Feld. Die Route liegt
+  im Anker der Adresse und geht damit an keinen Server.
+- **Hinweisleiste** über der Karte: fragt vor dem Übernehmen einer fremden Route und nennt
+  die Punktzahl, dient sonst als kurze Rückmeldung.
+- Die zuletzt geholte gemeinsame Route wird zwischengespeichert, damit ein Start ohne
+  Empfang nicht auf die eingebauten Werte zurückfällt.
+
+### Geändert
+- „Koordinaten" heißt jetzt **„Für route.json"** und gibt das vollständige Dokument samt
+  frischer Marke aus — kopieren, im Repo einsetzen, fertig.
+- Vorrang beim Start: eigene Bearbeitung, sonst zuletzt geholte gemeinsame, sonst
+  eingebaute Route. Eine neuere gemeinsame Fassung wird angeboten, nie aufgezwungen.
+  Einmal verworfen wird nicht bei jedem Neustart erneut gefragt — beim Laden von Hand schon.
+- Speicherformat `v3` mit `basis`, der Marke, auf der die eigene Bearbeitung beruht.
+  Stände aus `v1` und `v2` laden weiterhin.
+
 ## [1.3] – 2026-08-17
 
 ### Hinzugefügt

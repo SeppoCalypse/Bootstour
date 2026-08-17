@@ -54,6 +54,15 @@
   .kartenfeld{position:relative;z-index:0}
   #map{height:46vh;min-height:280px;width:100%;background:var(--paper-2)}
 
+  /* ---- Hinweisleiste: Rueckfrage bei fremder Route, sonst kurze Rueckmeldung ---- */
+  .leiste{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:9px 16px;
+    background:var(--paper-2);border-bottom:1px solid var(--line);font-size:13px}
+  .leiste .txt{flex:1 1 100%;font-weight:600}
+  .leiste button{min-height:var(--tap);padding:0 14px;background:var(--paper);
+    border:1.5px solid var(--sea);color:var(--sea);font-family:inherit;font-size:13px;
+    font-weight:700;cursor:pointer}
+  .leiste button.primaer{background:var(--sea);color:var(--paper)}
+
   /* ---- Vollbild: seitenintern, damit es auch dort traegt, wo die Fullscreen-API fehlt ---- */
   .vollknopf{display:block;width:100%;min-height:var(--tap);background:var(--paper);
     border:0;border-bottom:1px solid var(--line);font-family:inherit;font-size:13px;
@@ -66,7 +75,7 @@
   body.karte-voll #map{height:100%;min-height:0}
   body.karte-voll header, body.karte-voll .modus, body.karte-voll .band,
   body.karte-voll .ziel, body.karte-voll .instr, body.karte-voll section,
-  body.karte-voll .vollknopf{display:none}
+  body.karte-voll .leiste, body.karte-voll .vollknopf{display:none}
   .zurueckknopf{display:none}
   /* Unten links: mit dem Daumen erreichbar und nicht im Weg der Zoomtasten. */
   body.karte-voll .zurueckknopf{display:flex;align-items:center;position:absolute;z-index:950;
@@ -216,6 +225,14 @@
 
 <div class="fahren">
 
+  <div class="leiste" id="leiste" style="display:none">
+    <span class="txt" id="leisteText"></span>
+    <span id="leisteKnoepfe" style="display:none;gap:8px">
+      <button type="button" id="leisteJa" class="primaer">Übernehmen</button>
+      <button type="button" id="leisteNein">Verwerfen</button>
+    </span>
+  </div>
+
   <div class="kartenfeld">
     <div id="map"></div>
     <div class="chips">
@@ -274,6 +291,7 @@
     </div>
     <div class="knopfreihe">
       <button id="btnEdit" aria-pressed="false">Route bearbeiten</button>
+      <button id="btnLaden">Route laden</button>
     </div>
 
     <div id="editpanel" style="display:none">
@@ -286,7 +304,10 @@
       <div class="knopfreihe">
         <button id="btnSichern" class="primaer">Sichern</button>
         <button id="btnReset">Zurücksetzen</button>
-        <button id="btnCoords">Koordinaten</button>
+      </div>
+      <div class="knopfreihe">
+        <button id="btnTeilen">Route teilen</button>
+        <button id="btnCoords">Für route.json</button>
       </div>
       <div class="punkte" id="punkteListe"></div>
       <textarea id="coords" readonly style="display:none"></textarea>
@@ -353,7 +374,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
-const VERSION = '1.3';
+const VERSION = '1.4';
 document.getElementById('ver').textContent  = VERSION;
 document.getElementById('ver2').textContent = VERSION;
 
@@ -622,47 +643,127 @@ function punkteListe(){
   });
 }
 
-// ---- Speichern im Geraet, damit die Korrektur sofort und offline gilt ----
-const SPEICHER = 'bootstour-route';
-// Seit v2 stehen auch bei den benannten Punkten Koordinaten drin, weil sie verschiebbar
-// sind. Ein v1-Stand aus der Vorversion wird weiter gelesen, seine Wegpunkte behalten dann
-// die eingebauten Werte.
+// ---- Drei Quellen: eingebaut, gemeinsam aus route.json, eigene Bearbeitung ----
+// localStorage gehoert dem einzelnen Browser auf dem einzelnen Geraet. Damit beide
+// Telefone dieselbe Route sehen, liegt sie in route.json und wird beim Laden geholt.
+const SPEICHER = 'bootstour-route';     // eigene Bearbeitung
+const GETEILT  = 'bootstour-geteilt';   // zuletzt geholte gemeinsame Fassung
+const ABGELEHNT = 'bootstour-abgelehnt';// gemeinsame Fassung, die bewusst nicht gewollt war
+let standGemeinsam = null;   // Marke der geltenden gemeinsamen Route
+let basisEigen = null;       // Marke, auf der die eigene Bearbeitung beruht
+let angebot = null;          // wartet auf Zustimmung in der Hinweisleiste
+
 function pfadAlsListe(){
   return PATH.map(w=>{
     const k = {lat:+w.lat.toFixed(5), lon:+w.lon.toFixed(5)};
     return w.via ? k : Object.assign({id:w.id}, k);
   });
 }
+
+// Erst vollstaendig pruefen, dann anwenden. Ein halb uebernommener Pfad wuerde sonst die
+// geltende Route beschaedigen, wenn der Rest sich als unbrauchbar erweist.
+function pfadAusListe(liste){
+  if(!Array.isArray(liste) || !liste.length) return null;
+  const roh = [];
+  for(const e of liste){
+    if(!e || typeof e!=='object') return null;
+    const hatKoord = isFinite(e.lat) && isFinite(e.lon) &&
+                     Math.abs(e.lat)<=90 && Math.abs(e.lon)<=180;
+    if(e.id){ roh.push(hatKoord ? {id:e.id, lat:+e.lat, lon:+e.lon} : {id:e.id}); }
+    else if(hatKoord){ roh.push({lat:+e.lat, lon:+e.lon}); }
+    else return null;
+  }
+  // Nur uebernehmen, wenn das Grundgeruest vollstaendig und in Reihenfolge steckt.
+  if(roh.filter(e=>e.id).map(e=>e.id).join(',') !== BASIS.join(',')) return null;
+  wpZuruecksetzen();
+  return roh.map(e=>{
+    if(!e.id) return neuerVia(e.lat, e.lon);
+    const w = WP.find(x=>x.id===e.id);
+    if('lat' in e){ w.lat = e.lat; w.lon = e.lon; }
+    return w;
+  });
+}
+
 function routeSichern(){
   try{
-    localStorage.setItem(SPEICHER, JSON.stringify({v:2, path:pfadAlsListe()}));
-    meldung('Route gesichert.');
+    localStorage.setItem(SPEICHER, JSON.stringify({v:3, basis:standGemeinsam, path:pfadAlsListe()}));
+    basisEigen = standGemeinsam;
+    meldung('Route gesichert – nur auf diesem Gerät. Für beide: „Für route.json“.');
   }catch(e){ meldung('Konnte nicht sichern: '+e.message); }
 }
-function routeLaden(){
+function eigeneLaden(){
   try{
-    const roh = localStorage.getItem(SPEICHER);
-    if(!roh) return null;
-    const o = JSON.parse(roh);
-    if(!o || (o.v!==1 && o.v!==2) || !Array.isArray(o.path)) return null;
-    wpZuruecksetzen();
-    const p = o.path.map(e=>{
-      if(e.id){
-        const w = WP.find(x=>x.id===e.id);
-        if(!w) return null;
-        if(isFinite(e.lat) && isFinite(e.lon) && Math.abs(e.lat)<=90 && Math.abs(e.lon)<=180){
-          w.lat = e.lat; w.lon = e.lon;
-        }
-        return w;
-      }
-      if(typeof e.lat==='number' && typeof e.lon==='number') return neuerVia(e.lat,e.lon);
-      return null;
-    }).filter(Boolean);
-    // Nur uebernehmen, wenn das Grundgeruest vollstaendig und in Reihenfolge steckt.
-    return p.filter(w=>!w.via).map(w=>w.id).join(',') === BASIS.join(',') ? p : null;
+    const o = JSON.parse(localStorage.getItem(SPEICHER) || 'null');
+    if(!o || !Array.isArray(o.path)) return null;
+    const p = pfadAusListe(o.path);
+    return p ? {p:p, basis:o.basis || null} : null;
   }catch(e){ return null; }
 }
+function geteiltAusSpeicher(){
+  try{
+    const o = JSON.parse(localStorage.getItem(GETEILT) || 'null');
+    if(!o || !Array.isArray(o.path)) return null;
+    const p = pfadAusListe(o.path);
+    return p ? {p:p, stand:o.stand || null} : null;
+  }catch(e){ return null; }
+}
+
 function meldung(t){ document.getElementById('rtMeldung').textContent = t; }
+
+// ---- Hinweisleiste: Rueckfrage mit Knoepfen oder kurze Meldung ----
+let leisteTimer = null;
+function leiste(text, mitKnoepfen){
+  const l = document.getElementById('leiste');
+  document.getElementById('leisteText').textContent = text;
+  document.getElementById('leisteKnoepfe').style.display = mitKnoepfen ? 'flex' : 'none';
+  l.style.display = 'flex';
+  clearTimeout(leisteTimer);
+  if(!mitKnoepfen) leisteTimer = setTimeout(()=>{ l.style.display='none'; }, 5000);
+}
+function leisteZu(){ clearTimeout(leisteTimer); document.getElementById('leiste').style.display='none'; angebot = null; }
+
+// ---- Gemeinsame Route ----
+// Zeitstempel an der Adresse und no-store, sonst liefert der Browser nach einer Aenderung
+// an route.json tagelang die alte Fassung aus.
+async function gemeinsameHolen(){
+  const r = await fetch('route.json?t='+Date.now(), {cache:'no-store'});
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  const o = await r.json();
+  if(!o || !Array.isArray(o.path)) throw new Error('Format');
+  return o;
+}
+function anwenden(o){
+  const p = pfadAusListe(o.path);
+  if(!p) return false;
+  PATH = p;
+  standGemeinsam = o.stand || null;
+  basisEigen = null;
+  try{ localStorage.removeItem(SPEICHER); }catch(e){}   // die eigene Fassung weicht
+  buildRoute();
+  return true;
+}
+// Verglichen wird nur die Marke auf gleich oder ungleich — nie auf aelter oder neuer,
+// damit Uhren und Zeitzonen keine Rolle spielen.
+async function abgleichen(manuell){
+  let o;
+  try{ o = await gemeinsameHolen(); }
+  catch(e){ if(manuell) leiste('Kein Empfang – gemeinsame Route nicht erreichbar.', false); return; }
+  try{ localStorage.setItem(GETEILT, JSON.stringify(o)); }catch(e){}
+  const eigenes = basisEigen !== null || !!localStorage.getItem(SPEICHER);
+  const bezug = eigenes ? basisEigen : standGemeinsam;
+  if((o.stand||null) === bezug){ if(manuell) leiste('Route ist aktuell.', false); return; }
+  if(eigenes){
+    // Einmal verworfen heisst verworfen: nicht bei jedem Neustart erneut fragen. Beim
+    // Nachladen von Hand wird trotzdem gefragt, dann will man es ja wissen.
+    let abgelehnt = null;
+    try{ abgelehnt = localStorage.getItem(ABGELEHNT); }catch(e){}
+    if(!manuell && abgelehnt && abgelehnt === (o.stand||null)) return;
+    angebot = o;
+    leiste('Neue gemeinsame Route mit '+o.path.length+' Punkten. Deine eigene Fassung würde ersetzt.', true);
+  } else if(anwenden(o)){
+    leiste('Gemeinsame Route geladen.', false);
+  }
+}
 
 // Grobe Ebene in Seemeilen, auf diesen paar Kilometern genau genug fuer die Projektion.
 function flat(lat,lon){return [lon*60*Math.cos(39.33*Math.PI/180), lat*60];}
@@ -796,14 +897,75 @@ btnReset.onclick = ()=>{
   try{ localStorage.removeItem(SPEICHER); }catch(e){}
   buildRoute(); meldung('Auf die eingebaute Route zurückgesetzt.');
 };
+// Gibt das fertige Dokument aus: kopieren, auf github.com in route.json einsetzen, fertig.
 btnCoords.onclick = ()=>{
   const t = document.getElementById('coords');
-  t.value = JSON.stringify(pfadAlsListe());
+  t.value = JSON.stringify({v:3, stand:new Date().toISOString(), path:pfadAlsListe()}, null, 2);
   t.style.display = ''; t.select();
+  meldung('Inhalt für route.json – im Repo einsetzen, dann sehen es beide.');
 };
 
-PATH = routeLaden() || standardPfad();
-buildRoute();
+// ---- Teilen per Link. Die Route steckt im Anker, geht also an keinen Server. ----
+function teilenAdresse(){
+  return location.origin + location.pathname +
+         '#r=' + encodeURIComponent(JSON.stringify(pfadAlsListe()));
+}
+btnTeilen.onclick = ()=>{
+  const url = teilenAdresse();
+  if(navigator.share){
+    navigator.share({title:'Bootstour – Route', url:url}).catch(()=>{});
+    meldung('Link zum Verschicken geöffnet.');
+  } else {
+    const t = document.getElementById('coords');
+    t.value = url; t.style.display=''; t.select();
+    meldung('Link steht im Feld – kopieren und verschicken.');
+  }
+};
+function ankerRoute(){
+  const m = location.hash.match(/^#r=(.+)$/);
+  if(!m) return null;
+  try{
+    const liste = JSON.parse(decodeURIComponent(m[1]));
+    return Array.isArray(liste) && liste.length ? liste : null;
+  }catch(e){ return null; }
+}
+
+leisteJa.onclick = ()=>{
+  const o = angebot;
+  leisteZu();
+  if(o && anwenden(o)) leiste('Route übernommen.', false);
+  else leiste('Route unbrauchbar – nichts geändert.', false);
+};
+leisteNein.onclick = ()=>{
+  if(angebot && angebot.stand && !/^link-/.test(angebot.stand)){
+    try{ localStorage.setItem(ABGELEHNT, angebot.stand); }catch(e){}
+  }
+  leisteZu();
+};
+btnLaden.onclick = ()=>{ leiste('Wird geladen …', false); abgleichen(true); };
+
+// ---- Start: erst das Eigene oder zuletzt Geholte zeichnen, dann im Hintergrund abgleichen ----
+(function start(){
+  const eigen = eigeneLaden();
+  if(eigen){ PATH = eigen.p; basisEigen = eigen.basis; }
+  else {
+    const zw = geteiltAusSpeicher();
+    if(zw){ PATH = zw.p; standGemeinsam = zw.stand; }
+    else PATH = standardPfad();
+  }
+  buildRoute();
+
+  // Ein Link im Anker wird angeboten, nicht aufgezwungen. Anker sofort entfernen, sonst
+  // fragt jeder Neustart erneut.
+  const ausLink = ankerRoute();
+  if(ausLink){
+    history.replaceState(null, '', location.pathname + location.search);
+    angebot = {stand:'link-'+Date.now(), path:ausLink};
+    leiste('Geteilte Route mit '+ausLink.length+' Punkten erhalten. Übernehmen?', true);
+  } else {
+    abgleichen(false);
+  }
+})();
 
 function tick(){
   const now=new Date();
